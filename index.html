@@ -82,8 +82,17 @@
           </div>
 
           <div class="hero__mubito" aria-label="Mubito">
-            <img class="mubito" src="/mubito.jpg" alt="Mubito" />
-            <div class="mubito__glow" aria-hidden="true"></div>
+            <div class="mubito-scene scene--idle" data-mubito-scene>
+              <div class="ufo" aria-hidden="true"></div>
+              <div class="beam" aria-hidden="true"></div>
+
+              <img class="mubito" src="/mubito.png" alt="Mubito" data-mubito />
+              <div class="mubito__glow" aria-hidden="true"></div>
+
+              <button class="replay-btn" type="button" aria-label="Repetir animación de Mubito" data-mubito-replay>
+                ↻
+              </button>
+            </div>
           </div>
         </div>
       </div>

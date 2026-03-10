@@ -4,3 +4,9 @@
 .particles{position:absolute;inset:0;z-index:1;pointer-events:none}
 .particle{position:absolute;width:4px;height:4px;border-radius:999px;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:float 6s infinite ease-in-out;opacity:.7}
 @keyframes float{0%,100%{transform:translateY(0) translateX(0) scale(1);opacity:.25}50%{transform:translateY(-20px) translateX(10px) scale(1.5);opacity:1}}
+@keyframes ufoEnter{0%{transform:translateX(-50%) translateY(-160px) scale(.9);opacity:0}60%{opacity:1}100%{transform:translateX(-50%) translateY(0) scale(1);opacity:1}}
+@keyframes beamFlicker{0%{opacity:0;filter:blur(.4px)}25%{opacity:1}35%{opacity:.55}55%{opacity:1}70%{opacity:.75}100%{opacity:1;filter:blur(.2px)}}
+@keyframes mubitoDescend{0%{transform:translateY(60px) scale(.92);opacity:0}100%{transform:translateY(0) scale(1);opacity:1}}
+@keyframes ufoExit{0%{transform:translateX(-50%) translateY(0) scale(1);opacity:1}100%{transform:translateX(-50%) translateY(-140px) translateX(120px) scale(.85);opacity:0}}
+@keyframes mubitoDance{0%{transform:translateX(0) translateY(0) rotate(0)}25%{transform:translateX(-6px) translateY(-4px) rotate(-1deg)}50%{transform:translateX(0) translateY(0) rotate(0)}75%{transform:translateX(6px) translateY(-4px) rotate(1deg)}100%{transform:translateX(0) translateY(0) rotate(0)}}
+@keyframes danceBoost{0%{filter:drop-shadow(0 0 0 rgba(244,60,184,0))}40%{filter:drop-shadow(0 0 26px rgba(244,60,184,.6)) drop-shadow(0 0 40px rgba(187,17,117,.45))}100%{filter:drop-shadow(0 0 0 rgba(244,60,184,0))}}

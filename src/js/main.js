@@ -83,3 +83,74 @@ initLinks();
 initMobileNav();
 initParticles();
 initTiltCards();
+
+function initMubitoScene() {
+  const hero = qs('#hero');
+  const scene = qs('[data-mubito-scene]');
+  const replay = qs('[data-mubito-replay]');
+  const mubito = qs('[data-mubito]');
+  if (!hero || !scene || !replay || !mubito) return;
+
+  const KEY = 'lamubi_mubito_intro_played';
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const clearStates = () => {
+    scene.classList.remove('scene--idle','scene--ufo-enter','scene--beam-on','scene--mubito-descend','scene--ufo-exit','scene--dance');
+  };
+
+  const toDance = () => {
+    clearStates();
+    scene.classList.add('scene--dance');
+  };
+
+  const playIntro = () => {
+    scene.classList.remove('is-boosting');
+    clearStates();
+    scene.classList.add('scene--idle');
+
+    // force reflow so CSS animations restart
+    void scene.offsetHeight;
+
+    scene.classList.add('scene--ufo-enter');
+    setTimeout(() => scene.classList.add('scene--beam-on'), 1200);
+    setTimeout(() => scene.classList.add('scene--mubito-descend'), 2000);
+    setTimeout(() => scene.classList.add('scene--ufo-exit'), 3000);
+    setTimeout(() => {
+      scene.classList.remove('scene--ufo-enter','scene--beam-on','scene--mubito-descend','scene--ufo-exit');
+      scene.classList.add('scene--dance');
+    }, 3600);
+  };
+
+  replay.addEventListener('click', () => {
+    playIntro();
+  });
+
+  mubito.addEventListener('click', () => {
+    scene.classList.add('is-boosting');
+    setTimeout(() => scene.classList.remove('is-boosting'), 1200);
+  });
+
+  if (reduceMotion) {
+    toDance();
+    return;
+  }
+
+  if (sessionStorage.getItem(KEY) === '1') {
+    toDance();
+    return;
+  }
+
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting && e.intersectionRatio >= 0.35) {
+        io.disconnect();
+        playIntro();
+        try { sessionStorage.setItem(KEY, '1'); } catch (_) {}
+      }
+    }
+  }, { threshold: [0, 0.35, 0.6, 1] });
+
+  io.observe(hero);
+}
+
+initMubitoScene();
