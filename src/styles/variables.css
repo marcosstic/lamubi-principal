@@ -1,0 +1,24 @@
+:root {
+  --primary: #bb1175;
+  --secondary: #f43cb8;
+  --accent: #f361e5;
+  --black: #000000;
+  --white: #ffffff;
+  --dark: #0a0a0a;
+
+  --font: 'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+
+  --shadow-lamubi: 0 10px 30px rgba(187, 17, 117, 0.3);
+  --shadow-strong: 0 20px 50px rgba(187, 17, 117, 0.5);
+
+  --container: 1200px;
+  --gutter: 1rem;
+
+  --t-fast: 150ms ease;
+  --t: 300ms ease;
+  --t-slow: 600ms ease;
+}

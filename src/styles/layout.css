@@ -1,0 +1,9 @@
+.container{max-width:var(--container);margin:0 auto;padding:0 var(--gutter)}
+.section{padding:5rem 0;position:relative}
+.section--dark{background:linear-gradient(180deg,var(--black),var(--dark))}
+.section__header{margin-bottom:2rem;text-align:center}
+.section__title{font-size:clamp(2rem,5vw,3rem);font-weight:900;letter-spacing:.02em;background:linear-gradient(45deg,var(--primary),var(--secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.section__subtitle{opacity:.8;max-width:58ch;margin:0 auto}
+.grid{display:grid;gap:1.25rem}
+.grid--2{grid-template-columns:repeat(2,1fr)}
+.grid--3{grid-template-columns:repeat(3,1fr)}

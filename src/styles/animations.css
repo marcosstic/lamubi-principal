@@ -1,0 +1,6 @@
+@keyframes logoGlow{from{filter:drop-shadow(0 0 20px var(--primary)) drop-shadow(0 0 40px var(--secondary)) drop-shadow(0 0 60px var(--accent));transform:translateY(0)}to{filter:drop-shadow(0 0 30px var(--primary)) drop-shadow(0 0 50px var(--secondary)) drop-shadow(0 0 70px var(--accent));transform:translateY(-4px)}}
+@keyframes pulseGlow{from{opacity:.65;transform:scale(1)}to{opacity:1;transform:scale(1.03)}}
+
+.particles{position:absolute;inset:0;z-index:1;pointer-events:none}
+.particle{position:absolute;width:4px;height:4px;border-radius:999px;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:float 6s infinite ease-in-out;opacity:.7}
+@keyframes float{0%,100%{transform:translateY(0) translateX(0) scale(1);opacity:.25}50%{transform:translateY(-20px) translateX(10px) scale(1.5);opacity:1}}
