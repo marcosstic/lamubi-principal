@@ -28,9 +28,10 @@
 .hero__subtitle{margin:.4rem 0 1rem;font-size:clamp(1.1rem,2.4vw,1.7rem);color:var(--secondary);font-weight:800}
 .hero__copy{opacity:.85;max-width:60ch}
 .hero__ctas{display:flex;gap:1rem;margin-top:1.6rem;flex-wrap:wrap}
-.hero__mubito{position:relative;max-width:420px;margin-left:auto}
+.hero__mubito{position:relative;max-width:420px;margin-left:auto;display:flex;flex-direction:column;align-items:center}
 .mubito{border-radius:var(--radius-lg);box-shadow:0 0 40px rgba(244,60,184,.18)}
 .mubito__glow{position:absolute;inset:-20px;background:radial-gradient(circle, rgba(244,60,184,.35), transparent 60%);filter:blur(10px);z-index:-1;animation:pulseGlow 2.2s ease-in-out infinite alternate}
+.mubito-caption{text-align:center;margin-top:1.5rem;font-size:clamp(0.9rem, 1.5vw, 1.1rem);font-weight:600;letter-spacing:0.02em;color:var(--white);opacity:0.85;text-shadow:0 0 10px rgba(244, 60, 184, 0.3);animation:fadeIn 1s ease-out 0.5s both;}
 
 .card{position:relative;background:rgba(255,255,255,.05);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-lg);padding:1.5rem;box-shadow:var(--shadow-lamubi);transition:var(--t)}
 .card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--secondary))}
