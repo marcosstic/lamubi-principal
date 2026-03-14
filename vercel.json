@@ -9,15 +9,10 @@
   ],
   "routes": [
     {
-      "src": "/tickets/(.*)",
-      "dest": "/tickets/index.html"
-    },
-    {
-      "src": "/registro/(.*)",
-      "dest": "/registro/index.html"
-    },
-    {
       "src": "/(.*)",
+      "headers": {
+        "cache-control": "s-maxage=86400"
+      },
       "dest": "/$1"
     }
   ]

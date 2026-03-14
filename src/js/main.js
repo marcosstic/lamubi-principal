@@ -1,12 +1,5 @@
-import { LINKS } from './config/links.js';
-
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
-
-function initLinks() {
-  qsa('[data-link="tickets"]').forEach(a => a.setAttribute('href', LINKS.tickets));
-  qsa('[data-link="registro"]').forEach(a => a.setAttribute('href', LINKS.registro));
-}
 
 function initMobileNav() {
   const btn = qs('[data-menu-btn]');
@@ -102,7 +95,7 @@ function initTiltCards() {
   });
 }
 
-initLinks();
+
 initMobileNav();
 initParticles();
 initTiltCards();
