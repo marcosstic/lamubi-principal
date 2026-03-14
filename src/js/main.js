@@ -33,6 +33,29 @@ function initMobileNav() {
   });
 }
 
+function initInstagramEmbeds() {
+  const embeds = qsa('.instagram-media');
+  if (!embeds.length) return;
+
+  const process = () => {
+    try {
+      if (window.instgrm && window.instgrm.Embeds && typeof window.instgrm.Embeds.process === 'function') {
+        window.instgrm.Embeds.process();
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  };
+
+  if (process()) return;
+
+  let tries = 0;
+  const t = setInterval(() => {
+    tries += 1;
+    if (process() || tries >= 20) clearInterval(t);
+  }, 300);
+}
+
 function initParticles() {
   const root = qs('[data-particles]');
   if (!root) return;
@@ -83,6 +106,7 @@ initLinks();
 initMobileNav();
 initParticles();
 initTiltCards();
+initInstagramEmbeds();
 
 function initMubitoScene() {
   const hero = qs('#hero');

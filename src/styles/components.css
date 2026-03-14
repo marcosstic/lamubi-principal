@@ -39,14 +39,13 @@
 .card__text{margin:0;opacity:.9;line-height:1.6}
 
 .portfolio{display:grid;gap:1.5rem}
-.portfolio__featured .embed{border-radius:var(--radius-lg);overflow:hidden;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04)}
-.portfolio__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
-.portfolio-card{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);border-radius:var(--radius-lg);overflow:hidden;transition:var(--t);position:relative}
-.portfolio-card:hover{transform:translateY(-6px);box-shadow:var(--shadow-strong)}
-.portfolio-card__media{height:140px;background:linear-gradient(135deg, rgba(187,17,117,.25), rgba(244,60,184,.12));}
-.portfolio-card__meta{padding:1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
-.portfolio-card__title{font-weight:900}
-.portfolio-card__cta{opacity:.8;font-weight:800;text-transform:uppercase;font-size:.85rem;color:var(--secondary)}
+.portfolio__featured{display:grid;justify-items:center}
+.portfolio__featured .embed{width:50%}
+.portfolio .embed{border-radius:var(--radius-lg);overflow:hidden;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);min-height:400px;display:flex;align-items:center;justify-content:center}
+.portfolio__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem}
+.portfolio .instagram-media{margin:0 !important;max-width:100% !important;width:100% !important;min-height:400px !important}
+.portfolio .tiktok-embed{margin:0 !important;max-width:100% !important;width:100% !important;min-height:400px !important}
+.portfolio .tiktok-embed iframe{width:100% !important;max-width:100% !important;min-height:400px !important}
 .portfolio__b2b{text-align:center;display:grid;justify-items:center;gap:.6rem;margin-top:1rem}
 .portfolio__note{margin:0;opacity:.75}
 
