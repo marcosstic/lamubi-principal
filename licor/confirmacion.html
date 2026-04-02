@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LA MUBI — Confirmación (Licor)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles/variables.css" />
+  <link rel="stylesheet" href="/src/styles/base.css" />
+  <link rel="stylesheet" href="/src/styles/layout.css" />
+  <link rel="stylesheet" href="/src/styles/components.css" />
+  <link rel="stylesheet" href="/src/styles/animations.css" />
+  <link rel="stylesheet" href="/src/styles/responsive.css" />
+  <link rel="stylesheet" href="/src/styles/licor.css" />
+</head>
+<body>
+  <header class="header" role="banner">
+    <div class="container header__inner">
+      <a class="brand" href="/licor/index.html" aria-label="LA MUBI">
+        <img class="brand__logo" src="/LaMubiMCBOLogo1.png" alt="LA MUBI" />
+      </a>
+
+      <nav class="nav" aria-label="Licor">
+        <a class="nav__link" data-nav-link href="/licor/tienda.html">Tienda</a>
+        <a class="nav__link" data-nav-link href="/licor/mi-cuenta.html">Mi cuenta</a>
+        <a class="nav__link" data-nav-link href="/licor/croquis.html">Croquis</a>
+      </nav>
+
+      <div class="header__ctas">
+        <a class="btn btn--secondary" href="/licor/mi-cuenta.html">Mi cuenta</a>
+      </div>
+
+      <button class="menu-btn" type="button" aria-label="Abrir menú" aria-expanded="false" data-menu-btn>
+        <span class="menu-btn__bars" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <div class="mobile-nav" data-mobile-nav>
+      <div class="mobile-nav__panel">
+        <a class="mobile-nav__link" href="/licor/tienda.html">Tienda</a>
+        <a class="mobile-nav__link" href="/licor/mi-cuenta.html">Mi cuenta</a>
+        <a class="mobile-nav__link" href="/licor/croquis.html">Croquis</a>
+        <div class="mobile-nav__ctas">
+          <a class="btn btn--secondary btn--block" href="/licor/mi-cuenta.html">Mi cuenta</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page" id="main" data-require-user>
+    <section class="container">
+      <div class="page__header">
+        <div>
+          <h1 class="page__title">Confirmación</h1>
+          <p class="page__subtitle">Tu QR queda pendiente hasta aprobación del admin.</p>
+        </div>
+      </div>
+
+      <div class="grid" data-confirmacion></div>
+    </section>
+  </main>
+
+  <div class="toast-root" data-toast-root></div>
+
+  <script src="/src/js/main.js" type="module"></script>
+  <script src="/src/js/licor/app.js" type="module"></script>
+</body>
+</html>

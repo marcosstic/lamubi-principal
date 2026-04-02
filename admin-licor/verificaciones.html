@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LA MUBI — Admin Licor (Verificaciones)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles/variables.css" />
+  <link rel="stylesheet" href="/src/styles/base.css" />
+  <link rel="stylesheet" href="/src/styles/layout.css" />
+  <link rel="stylesheet" href="/src/styles/components.css" />
+  <link rel="stylesheet" href="/src/styles/animations.css" />
+  <link rel="stylesheet" href="/src/styles/responsive.css" />
+  <link rel="stylesheet" href="/src/styles/licor.css" />
+</head>
+<body>
+  <header class="header" role="banner">
+    <div class="container header__inner">
+      <a class="brand" href="/" aria-label="LA MUBI">
+        <img class="brand__logo" src="/LaMubiMCBOLogo1.png" alt="LA MUBI" />
+      </a>
+
+      <nav class="nav" aria-label="Admin Licor">
+        <a class="nav__link" data-nav-link href="/admin-licor/index.html">Dashboard</a>
+        <a class="nav__link" data-nav-link href="/admin-licor/licores.html">Licores</a>
+        <a class="nav__link" data-nav-link href="/admin-licor/tasa.html">Tasa</a>
+        <a class="nav__link" data-nav-link href="/admin-licor/verificaciones.html">Verificaciones</a>
+        <a class="nav__link" data-nav-link href="/admin-licor/croquis.html">Croquis</a>
+      </nav>
+
+      <div class="header__ctas">
+        <span class="badge"><span style="opacity:.75">@</span> <span data-admin-email></span></span>
+        <a class="btn btn--secondary" data-admin-logout href="#">Salir</a>
+      </div>
+
+      <button class="menu-btn" type="button" aria-label="Abrir menú" aria-expanded="false" data-menu-btn>
+        <span class="menu-btn__bars" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <div class="mobile-nav" data-mobile-nav>
+      <div class="mobile-nav__panel">
+        <a class="mobile-nav__link" href="/admin-licor/index.html">Dashboard</a>
+        <a class="mobile-nav__link" href="/admin-licor/licores.html">Licores</a>
+        <a class="mobile-nav__link" href="/admin-licor/tasa.html">Tasa</a>
+        <a class="mobile-nav__link" href="/admin-licor/verificaciones.html">Verificaciones</a>
+        <a class="mobile-nav__link" href="/admin-licor/croquis.html">Croquis</a>
+        <div class="mobile-nav__ctas">
+          <a class="btn btn--secondary btn--block" data-admin-logout href="#">Salir</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page" id="main" data-admin-verificaciones data-require-admin>
+    <section class="container">
+      <div class="page__header">
+        <div>
+          <h1 class="page__title">Verificaciones</h1>
+          <p class="page__subtitle">Aprueba o rechaza órdenes de licor (mock con `localStorage`).</p>
+        </div>
+      </div>
+
+      <div class="split">
+        <div class="grid" data-verif-list></div>
+        <aside class="grid" data-verif-detail></aside>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast-root" data-toast-root></div>
+
+  <script src="/src/js/main.js" type="module"></script>
+  <script src="/src/js/admin-licor/app.js" type="module"></script>
+</body>
+</html>

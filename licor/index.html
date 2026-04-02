@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LA MUBI — Licor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles/variables.css" />
+  <link rel="stylesheet" href="/src/styles/base.css" />
+  <link rel="stylesheet" href="/src/styles/layout.css" />
+  <link rel="stylesheet" href="/src/styles/components.css" />
+  <link rel="stylesheet" href="/src/styles/animations.css" />
+  <link rel="stylesheet" href="/src/styles/responsive.css" />
+  <link rel="stylesheet" href="/src/styles/licor.css" />
+</head>
+<body>
+  <header class="header" role="banner">
+    <div class="container header__inner">
+      <a class="brand" href="/" aria-label="LA MUBI">
+        <img class="brand__logo" src="/LaMubiMCBOLogo1.png" alt="LA MUBI" />
+      </a>
+
+      <nav class="nav" aria-label="Licor">
+        <a class="nav__link" data-nav-link href="/licor/tienda.html">Tienda</a>
+        <a class="nav__link" data-nav-link href="/licor/mi-cuenta.html">Mi cuenta</a>
+        <a class="nav__link" data-nav-link href="/licor/croquis.html">Croquis</a>
+      </nav>
+
+      <div class="header__ctas">
+        <a class="btn btn--secondary" href="/licor/login.html">Entrar</a>
+        <a class="btn btn--primary" href="/licor/tienda.html">Comprar licor</a>
+      </div>
+
+      <button class="menu-btn" type="button" aria-label="Abrir menú" aria-expanded="false" data-menu-btn>
+        <span class="menu-btn__bars" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <div class="mobile-nav" data-mobile-nav>
+      <div class="mobile-nav__panel">
+        <a class="mobile-nav__link" href="/licor/tienda.html">Tienda</a>
+        <a class="mobile-nav__link" href="/licor/mi-cuenta.html">Mi cuenta</a>
+        <a class="mobile-nav__link" href="/licor/croquis.html">Croquis</a>
+        <div class="mobile-nav__ctas">
+          <a class="btn btn--secondary btn--block" href="/licor/login.html">Entrar</a>
+          <a class="btn btn--primary btn--block" href="/licor/tienda.html">Comprar licor</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page" id="main">
+    <section class="hero">
+      <div class="particles" data-particles aria-hidden="true"></div>
+      <div class="container hero__inner">
+        <div class="hero__grid">
+          <div class="hero__content">
+            <h1 class="hero__title">Licor</h1>
+            <p class="hero__subtitle">Precompra + reservar mesa</p>
+            <p class="hero__copy">Compra tu licor antes del evento. Recibe un QR con estado pendiente hasta aprobación. Una vez aprobado, reserva tu mesa por WhatsApp.</p>
+            <div class="hero__ctas">
+              <a class="btn btn--primary btn--lg" href="/licor/tienda.html">Ver catálogo</a>
+              <a class="btn btn--secondary btn--lg" href="/licor/mi-cuenta.html">Ir a mi cuenta</a>
+            </div>
+          </div>
+
+          <div class="hero__mubito" aria-label="Mubito">
+            <div class="mubito-scene scene--idle" data-mubito-scene>
+              <div class="ufo" aria-hidden="true"></div>
+              <div class="beam" aria-hidden="true"></div>
+              <img class="mubito" src="/mubito.png" alt="Mubito" data-mubito />
+              <div class="mubito__glow" aria-hidden="true"></div>
+              <button class="replay-btn" type="button" aria-label="Repetir animación de Mubito" data-mubito-replay>↻</button>
+            </div>
+            <p class="mubito-caption">Viaja con nosotros a la mejor época de tu vida.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-label="Cómo funciona">
+      <div class="container">
+        <header class="section__header">
+          <h2 class="section__title">Cómo funciona</h2>
+          <p class="section__subtitle">Flujo simple, moderno y verificación manual.</p>
+        </header>
+
+        <div class="grid grid--3" data-tilt-grid>
+          <article class="card card--tilt">
+            <h3 class="card__title">1) Selecciona</h3>
+            <p class="card__text">Elige los licores y cantidades. Verás el total en USD y Bs según la tasa.</p>
+          </article>
+          <article class="card card--tilt">
+            <h3 class="card__title">2) Paga</h3>
+            <p class="card__text">Zelle o Pago móvil. Subes comprobante y queda en verificación.</p>
+          </article>
+          <article class="card card--tilt">
+            <h3 class="card__title">3) QR + mesa</h3>
+            <p class="card__text">Cuando el admin apruebe, tu QR queda activo y podrás reservar mesa por WhatsApp.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast-root" data-toast-root></div>
+
+  <script src="/src/js/main.js" type="module"></script>
+</body>
+</html>
