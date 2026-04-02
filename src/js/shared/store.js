@@ -3,6 +3,8 @@ const LS = {
   adminSession: 'lamubi_admin_session',
   cart: 'lamubi_licor_cart',
   orders: 'lamubi_licor_orders',
+  rate: 'lamubi_licor_rate',
+  catalog: 'lamubi_licor_catalog',
   croquisCurrent: 'lamubi_croquis_current',
   croquisHistory: 'lamubi_croquis_history'
 };
@@ -130,6 +132,8 @@ export function getCroquisHistory() {
 }
 
 export function getMockCatalog() {
+  const stored = readJson(LS.catalog, null);
+  if (Array.isArray(stored) && stored.length) return stored;
   return [
     { sku: 'cacique-dorado', name: 'Cacique Dorado', desc: 'Ron venezolano premium.', priceUsd: 20, img: '/mubito.jpg' },
     { sku: 'cacique-500', name: 'Cacique 500', desc: 'Edición especial.', priceUsd: 35, img: '/mubito.jpg' },
@@ -138,6 +142,30 @@ export function getMockCatalog() {
   ];
 }
 
+export function setCatalog(items) {
+  if (!Array.isArray(items)) return false;
+  writeJson(LS.catalog, items);
+  return true;
+}
+
+export function addCatalogItem(item) {
+  const list = readJson(LS.catalog, null);
+  const base = Array.isArray(list) ? list : getMockCatalog();
+  const next = [item, ...base];
+  writeJson(LS.catalog, next);
+  return next;
+}
+
 export function getMockRate() {
-  return 600;
+  const raw = localStorage.getItem(LS.rate);
+  const n = Number(raw || 600);
+  if (!Number.isFinite(n) || n <= 0) return 600;
+  return n;
+}
+
+export function setMockRate(rate) {
+  const n = Number(rate);
+  if (!Number.isFinite(n) || n <= 0) return false;
+  localStorage.setItem(LS.rate, String(n));
+  return true;
 }

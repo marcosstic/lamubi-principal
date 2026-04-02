@@ -57,6 +57,32 @@
       <div class="card" style="max-width:560px">
         <form class="form" data-register-form>
           <div class="field">
+            <div class="label">Nombre completo</div>
+            <input class="input" name="nombre" type="text" autocomplete="name" placeholder="Nombre y apellido" required />
+          </div>
+
+          <div class="grid grid--2" style="margin-top:1rem">
+            <div class="field">
+              <div class="label">Edad</div>
+              <input class="input" name="edad" type="number" min="18" max="99" placeholder="18" required />
+            </div>
+            <div class="field">
+              <div class="label">Sexo</div>
+              <select class="input" name="sexo" required>
+                <option value="" selected disabled>Selecciona</option>
+                <option value="hombre">Hombre</option>
+                <option value="mujer">Mujer</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field" style="margin-top:1rem">
+            <div class="label">Número de teléfono</div>
+            <input class="input" name="telefono" type="tel" autocomplete="tel" placeholder="0414xxxxxxx" required />
+          </div>
+
+          <div class="field">
             <div class="label">Email</div>
             <input class="input" name="email" type="email" autocomplete="email" placeholder="tu@email.com" required />
           </div>

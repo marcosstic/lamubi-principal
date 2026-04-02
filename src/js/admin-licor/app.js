@@ -1,4 +1,4 @@
-import { clearAdminSession, getAdminSession, getCroquisHistory, setAdminSession, setCroquisCurrent, getOrders, updateOrderStatus } from '../shared/store.js';
+import { clearAdminSession, getAdminSession, getCroquisHistory, setAdminSession, setCroquisCurrent, getOrders, updateOrderStatus, getMockRate, setMockRate, getMockCatalog, addCatalogItem } from '../shared/store.js';
 import { bindNavActive, requireAdminSession, toast } from '../shared/ui.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
@@ -112,6 +112,88 @@ function initCroquisUpload() {
   renderHistory();
 }
 
+function initTasa() {
+  const root = qs('[data-require-admin]');
+  const input = qs('[data-rate-input]');
+  const save = qs('[data-rate-save]');
+  if (!input || !save) return;
+  if (!requireAdminSession(getAdminSession)) return;
+
+  input.value = String(getMockRate());
+
+  save.addEventListener('click', () => {
+    const ok = setMockRate(input.value);
+    if (!ok) {
+      toast('Ingresa una tasa válida', 'warning');
+      return;
+    }
+    toast('Tasa guardada', 'success');
+  });
+}
+
+function initLicores() {
+  const tbody = qs('[data-licor-tbody]');
+  if (!tbody) return;
+  if (!requireAdminSession(getAdminSession)) return;
+
+  const btnNew = qs('[data-licor-new]');
+  const formWrap = qs('[data-licor-form]');
+  const form = qs('[data-licor-create-form]');
+  const btnCancel = qs('[data-licor-cancel]');
+
+  function render() {
+    const catalog = getMockCatalog();
+    tbody.innerHTML = catalog.map((p) => `
+      <tr>
+        <td>${p.name}</td>
+        <td>$${Number(p.priceUsd || 0).toFixed(2)}</td>
+        <td><span class="badge badge--approved">Sí</span></td>
+        <td><button class="btn btn--secondary" type="button" disabled>Editar</button></td>
+      </tr>
+    `).join('');
+  }
+
+  btnNew?.addEventListener('click', () => {
+    if (formWrap) formWrap.style.display = 'block';
+    form?.reset();
+  });
+
+  btnCancel?.addEventListener('click', () => {
+    if (formWrap) formWrap.style.display = 'none';
+  });
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = qs('input[name="name"]', form).value.trim();
+    const desc = qs('input[name="desc"]', form).value.trim();
+    const priceUsd = Number(qs('input[name="priceUsd"]', form).value);
+    const file = qs('input[name="img"]', form).files?.[0] || null;
+
+    if (!name || !desc || !Number.isFinite(priceUsd)) {
+      toast('Completa nombre, descripción y precio', 'warning');
+      return;
+    }
+
+    let img = '/mubito.jpg';
+    if (file) {
+      img = await new Promise((resolve) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result || '/mubito.jpg'));
+        r.onerror = () => resolve('/mubito.jpg');
+        r.readAsDataURL(file);
+      });
+    }
+
+    const sku = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 32) || `sku-${Date.now()}`;
+    addCatalogItem({ sku, name, desc, priceUsd, img });
+    toast('Licor guardado', 'success');
+    if (formWrap) formWrap.style.display = 'none';
+    render();
+  });
+
+  render();
+}
+
 function initVerificaciones() {
   const root = qs('[data-admin-verificaciones]');
   if (!root) return;
@@ -208,5 +290,7 @@ initHeader();
 initGuards();
 initLogin();
 initDashboard();
+initTasa();
+initLicores();
 initCroquisUpload();
 initVerificaciones();

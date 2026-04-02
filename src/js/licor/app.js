@@ -64,6 +64,11 @@ function initLogin() {
     const next = new URLSearchParams(location.search).get('next');
     setTimeout(() => location.href = next || '/licor/mi-cuenta.html', 300);
   });
+
+  qs('[data-reset-pass]')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    toast('Mock: te enviamos un link de reset a tu correo (demo).', 'info');
+  });
 }
 
 function initRegistro() {
@@ -72,13 +77,18 @@ function initRegistro() {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+    const nombre = qs('input[name="nombre"]', form)?.value?.trim() || '';
+    const edadRaw = qs('input[name="edad"]', form)?.value || '';
+    const edad = Number(edadRaw);
+    const sexo = qs('select[name="sexo"]', form)?.value || '';
+    const telefono = qs('input[name="telefono"]', form)?.value?.trim() || '';
     const email = qs('input[name="email"]', form).value.trim().toLowerCase();
     const password = qs('input[name="password"]', form).value;
-    if (!email || !password) {
+    if (!nombre || !Number.isFinite(edad) || !sexo || !telefono || !email || !password) {
       toast('Completa email y contraseña', 'warning');
       return;
     }
-    setLicorSession({ email });
+    setLicorSession({ email, nombre, edad, sexo, telefono });
     toast('Cuenta creada', 'success');
     const next = new URLSearchParams(location.search).get('next');
     setTimeout(() => location.href = next || '/licor/mi-cuenta.html', 300);
@@ -250,15 +260,24 @@ function initCheckout() {
       <div style="border-top:1px solid rgba(255,255,255,.10);padding-top:1rem;display:grid;gap:.35rem">
         <div style="display:flex;justify-content:space-between"><span class="help">Total USD</span><strong>${fmtUsd(totals.totalUsd)}</strong></div>
         <div style="display:flex;justify-content:space-between"><span class="help">Total Bs</span><strong>${fmtVes(totals.totalVes)}</strong></div>
+        <div class="help">Tasa aplicada: ${totals.rate} Bs / USD</div>
       </div>
       <div class="grid grid--2">
         <label class="card card--soft" style="cursor:pointer;display:flex;gap:.75rem;align-items:flex-start">
-          <input type="radio" name="pay" value="zelle" checked />
-          <div><div style="font-weight:900">Zelle</div><div class="help">Pago en USD</div></div>
+          <input type="radio" name="pay" value="pago-movil" checked />
+          <div>
+            <div style="font-weight:900">PAGO MÓVIL</div>
+            <div class="help">Transferencia directa desde tu teléfono móvil</div>
+            <div class="help" style="margin-top:.35rem">Teléfono: 04140659985<br/>Banco: Banesco<br/>Cédula: 23554868</div>
+          </div>
         </label>
         <label class="card card--soft" style="cursor:pointer;display:flex;gap:.75rem;align-items:flex-start">
-          <input type="radio" name="pay" value="pago-movil" />
-          <div><div style="font-weight:900">Pago móvil</div><div class="help">Pago en Bs</div></div>
+          <input type="radio" name="pay" value="zelle" />
+          <div>
+            <div style="font-weight:900">ZELLE</div>
+            <div class="help">Transferencia instantánea desde EE.UU.</div>
+            <div class="help" style="margin-top:.35rem">Email: troconizjessica@gmail.com<br/>Nombre: Jessica Troconiz</div>
+          </div>
         </label>
       </div>
       <div style="display:flex;gap:.75rem;flex-wrap:wrap">
@@ -269,7 +288,7 @@ function initCheckout() {
   `;
 
   qs('[data-continue]')?.addEventListener('click', () => {
-    const method = qs('input[name="pay"]:checked')?.value || 'zelle';
+    const method = qs('input[name="pay"]:checked')?.value || 'pago-movil';
     localStorage.setItem('lamubi_licor_payment_method', method);
     location.href = '/licor/verificacion.html';
   });
@@ -288,7 +307,7 @@ function initVerificacion() {
   }
 
   const totals = computeTotals(cart);
-  const method = localStorage.getItem('lamubi_licor_payment_method') || 'zelle';
+  const method = localStorage.getItem('lamubi_licor_payment_method') || 'pago-movil';
 
   const summary = qs('[data-summary]');
   if (summary) {
@@ -297,6 +316,7 @@ function initVerificacion() {
         <h3 class="card__title" style="margin:0">Resumen</h3>
         <p class="help" style="margin:.5rem 0 0">Método: ${method === 'zelle' ? 'Zelle' : 'Pago móvil'}</p>
         <p class="help" style="margin:.15rem 0 0">Total: ${fmtUsd(totals.totalUsd)} · ${fmtVes(totals.totalVes)}</p>
+        <p class="help" style="margin:.15rem 0 0">Tasa aplicada: ${totals.rate} Bs / USD</p>
       </div>
     `;
   }
