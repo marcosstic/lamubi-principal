@@ -121,7 +121,7 @@ function initCroquisUpload() {
       return;
     }
     setCroquisCurrent(dataUrl);
-    toast('Croquis publicado', 'success');
+    toast('Mesas publicadas', 'success');
     renderHistory();
   });
 

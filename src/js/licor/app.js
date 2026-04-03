@@ -119,7 +119,7 @@ function renderOrders() {
     const badge = `badge--${o.status}`;
     const label = o.status === 'pending' ? 'Pendiente' : o.status === 'approved' ? 'Aprobada' : o.status === 'rejected' ? 'Rechazada' : 'Usada';
     const cta = o.status === 'approved'
-      ? `<a class="btn btn--primary" href="/licor/croquis.html">Ver croquis</a><a class="btn btn--secondary" href="https://wa.me/584140659985?text=Hola%20LA%20MUBI,%20quiero%20reservar%20mesa.%20Mi%20orden%20de%20licor%20es%20${o.id}" target="_blank" rel="noopener noreferrer">Reservar por WhatsApp</a>`
+      ? `<a class="btn btn--primary" href="/licor/croquis.html">Ver mesas</a><a class="btn btn--secondary" href="https://wa.me/584140659985?text=Hola%20LA%20MUBI,%20quiero%20reservar%20mesa.%20Mi%20orden%20de%20licor%20es%20${o.id}" target="_blank" rel="noopener noreferrer">Reservar por WhatsApp</a>`
       : o.status === 'rejected'
         ? `<a class="btn btn--primary" href="/licor/tienda.html">Crear nueva orden</a>`
         : `<a class="btn btn--secondary" href="/licor/confirmacion.html?order=${encodeURIComponent(o.id)}">Ver QR</a>`;
@@ -386,7 +386,7 @@ function initCroquis() {
   const current = JSON.parse(localStorage.getItem('lamubi_croquis_current') || 'null');
 
   if (!current?.dataUrl) {
-    root.innerHTML = `<div class="card card--soft"><h3 class="card__title">Croquis no disponible</h3><p class="card__text">Aún no se ha publicado un croquis.</p></div>`;
+    root.innerHTML = `<div class="card card--soft"><h3 class="card__title">Mesas no disponible</h3><p class="card__text">Aún no se ha publicado el mapa de mesas.</p></div>`;
     return;
   }
 
@@ -394,13 +394,13 @@ function initCroquis() {
     <div class="card card--soft" style="display:grid;gap:1rem">
       <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap">
         <div>
-          <h3 class="card__title" style="margin:0">Croquis actualizado</h3>
+          <h3 class="card__title" style="margin:0">Mesas actualizadas</h3>
           <p class="help" style="margin:.2rem 0 0">Última actualización: ${new Date(current.updatedAt).toLocaleString()}</p>
         </div>
         <a class="btn btn--secondary" href="https://wa.me/584140659985?text=Hola%20LA%20MUBI,%20quiero%20reservar%20mesa." target="_blank" rel="noopener noreferrer">Reservar por WhatsApp</a>
       </div>
       <div style="border:1px solid rgba(255,255,255,.10);border-radius:14px;overflow:hidden;background:#000">
-        <img src="${current.dataUrl}" alt="Croquis" style="width:100%;height:auto;display:block" />
+        <img src="${current.dataUrl}" alt="Mesas" style="width:100%;height:auto;display:block" />
       </div>
       <p class="help" style="margin:0">Leyenda: mesas tachadas o marcadas = no disponibles.</p>
     </div>
