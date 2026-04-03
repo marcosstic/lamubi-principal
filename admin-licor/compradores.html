@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LA MUBI — Admin Licor (Croquis)</title>
+  <title>LA MUBI — Admin Licor (Compradores)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet" />
@@ -18,10 +18,7 @@
 <body>
   <header class="header" role="banner">
     <div class="container header__inner">
-      <a class="brand" href="/" aria-label="LA MUBI">
-        <img class="brand__logo" src="/LaMubiMCBOLogo1.png" alt="LA MUBI" />
-      </a>
-
+      <a class="brand" href="/" aria-label="LA MUBI"><img class="brand__logo" src="/LaMubiMCBOLogo1.png" alt="LA MUBI" /></a>
       <nav class="nav" aria-label="Admin Licor">
         <a class="nav__link" data-nav-link href="/admin-licor/index.html">Dashboard</a>
         <a class="nav__link" data-nav-link href="/admin-licor/licores.html">Licores</a>
@@ -30,7 +27,6 @@
         <a class="nav__link" data-nav-link href="/admin-licor/croquis.html">Croquis</a>
         <a class="nav__link" data-nav-link href="/admin-licor/compradores.html">Compradores</a>
       </nav>
-
       <div class="header__ctas">
         <span class="badge"><span style="opacity:.75">@</span> <span data-admin-email></span></span>
         <a class="btn btn--secondary" data-admin-logout href="#">Salir</a>
@@ -56,47 +52,20 @@
     </div>
   </header>
 
-  <main class="page" id="main" data-admin-croquis data-require-admin>
+  <main class="page" id="main" data-admin-compradores data-require-admin>
     <section class="container">
       <div class="page__header">
         <div>
-          <h1 class="page__title">Croquis</h1>
-          <p class="page__subtitle">Publica la imagen vigente. Para marcar mesas no disponibles, edita la imagen externamente y vuelve a subirla.</p>
+          <h1 class="page__title">Compradores</h1>
+          <p class="page__subtitle">Mock: agregado por correo con búsqueda, orden y paginación.</p>
         </div>
       </div>
 
-      <div class="grid grid--2">
-        <div class="card">
-          <h3 class="card__title" style="margin:0">Subir croquis</h3>
-          <p class="help" style="margin:.35rem 0 0">Mock: se guarda en `localStorage` como DataURL.</p>
-          <div class="field" style="margin-top:1rem">
-            <div class="label">Imagen</div>
-            <input class="input" type="file" accept="image/*" />
-          </div>
-          <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1rem">
-            <button class="btn btn--primary" type="button" data-croquis-save>Publicar</button>
-            <a class="btn btn--secondary" href="/licor/croquis.html">Ver como usuario</a>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3 class="card__title" style="margin:0">Preview</h3>
-          <p class="help" style="margin:.35rem 0 0">Al publicar, esta versión será la vigente para usuarios.</p>
-          <div style="margin-top:1rem;border:1px solid rgba(255,255,255,.10);border-radius:14px;overflow:hidden;background:#000">
-            <img data-croquis-preview alt="Preview croquis" style="width:100%;height:auto;display:block" />
-          </div>
-        </div>
-      </div>
-
-      <div style="margin-top:1rem">
-        <h2 class="section__title" style="text-align:left;font-size:1.5rem;margin:0 0 .5rem">Historial</h2>
-        <div class="grid" data-croquis-history></div>
-      </div>
+      <div data-buyers-app></div>
     </section>
   </main>
 
   <div class="toast-root" data-toast-root></div>
-
   <script src="/src/js/main.js" type="module"></script>
   <script src="/src/js/admin-licor/app.js" type="module"></script>
 </body>

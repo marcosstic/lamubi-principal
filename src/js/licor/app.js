@@ -326,6 +326,11 @@ function initVerificacion() {
     const user = getLicorSession();
     const order = createOrder({
       userEmail: user.email,
+      buyer: {
+        email: user.email,
+        nombre: user.nombre || '',
+        telefono: user.telefono || ''
+      },
       items: cart.items,
       totals,
       paymentMethod: method

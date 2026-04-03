@@ -28,6 +28,7 @@
         <a class="nav__link" data-nav-link href="/admin-licor/tasa.html">Tasa</a>
         <a class="nav__link" data-nav-link href="/admin-licor/verificaciones.html">Verificaciones</a>
         <a class="nav__link" data-nav-link href="/admin-licor/croquis.html">Croquis</a>
+        <a class="nav__link" data-nav-link href="/admin-licor/compradores.html">Compradores</a>
       </nav>
 
       <div class="header__ctas">
@@ -47,6 +48,7 @@
         <a class="mobile-nav__link" href="/admin-licor/tasa.html">Tasa</a>
         <a class="mobile-nav__link" href="/admin-licor/verificaciones.html">Verificaciones</a>
         <a class="mobile-nav__link" href="/admin-licor/croquis.html">Croquis</a>
+        <a class="mobile-nav__link" href="/admin-licor/compradores.html">Compradores</a>
         <div class="mobile-nav__ctas">
           <a class="btn btn--secondary btn--block" data-admin-logout href="#">Salir</a>
         </div>
@@ -101,6 +103,41 @@
           <h3 class="card__title">Notas</h3>
           <p class="card__text">Este panel es un mock navegable. La persistencia se simula con `localStorage`.</p>
           <p class="card__text" style="margin-top:.6rem">Luego se conectará a Supabase (Auth + Storage + DB) sin cambiar el diseño.</p>
+        </article>
+      </div>
+
+      <div class="grid grid--2" style="margin-top:1rem">
+        <article class="card" data-recent-orders>
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+            <div>
+              <h3 class="card__title" style="margin:0">Órdenes recientes</h3>
+              <p class="help" style="margin:.35rem 0 0">Ordenadas por fecha (Venezuela). Incluye pendientes/aprobadas/rechazadas/usadas.</p>
+            </div>
+            <div style="min-width:220px">
+              <div class="label">Status</div>
+              <select class="input" data-recent-status>
+                <option value="all">Todas</option>
+                <option value="pending">Pendientes</option>
+                <option value="approved">Aprobadas</option>
+                <option value="rejected">Rechazadas</option>
+                <option value="used">Usadas</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;gap:.5rem;margin-top:1rem" data-recent-list></div>
+          <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1rem">
+            <a class="btn btn--secondary" href="/admin-licor/verificaciones.html">Ver pendientes</a>
+            <a class="btn btn--secondary" href="/admin-licor/compradores.html">Ver compradores</a>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="card__title">Atajos</h3>
+          <p class="card__text">Configuración y catálogo afectan lo que ve el usuario en la tienda.</p>
+          <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1rem">
+            <a class="btn btn--secondary" href="/admin-licor/tasa.html">Configurar tasa</a>
+            <a class="btn btn--secondary" href="/admin-licor/licores.html">Gestionar licores</a>
+          </div>
         </article>
       </div>
     </section>

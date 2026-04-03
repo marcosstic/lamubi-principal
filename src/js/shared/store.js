@@ -90,12 +90,20 @@ export function setOrders(orders) {
   writeJson(LS.orders, orders);
 }
 
-export function createOrder({ userEmail, items, totals, paymentMethod }) {
+export function createOrder({ userEmail, buyer, items, totals, paymentMethod }) {
   const orders = getOrders();
+  const buyerEmail = (buyer?.email || userEmail || '').trim().toLowerCase();
   const order = {
     id: uid('ord'),
     createdAt: new Date().toISOString(),
-    userEmail,
+    userEmail: buyerEmail || (userEmail || ''),
+    buyer: buyer
+      ? {
+          email: buyerEmail,
+          nombre: buyer?.nombre || '',
+          telefono: buyer?.telefono || ''
+        }
+      : null,
     items,
     totals,
     paymentMethod,
