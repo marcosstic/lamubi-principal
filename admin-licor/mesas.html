@@ -27,7 +27,7 @@
         <a class="nav__link" data-nav-link href="/admin-licor/licores.html">Licores</a>
         <a class="nav__link" data-nav-link href="/admin-licor/tasa.html">Tasa</a>
         <a class="nav__link" data-nav-link href="/admin-licor/verificaciones.html">Verificaciones</a>
-        <a class="nav__link" data-nav-link href="/admin-licor/croquis.html">Mesas</a>
+        <a class="nav__link" data-nav-link href="/admin-licor/mesas.html">Mesas</a>
         <a class="nav__link" data-nav-link href="/admin-licor/compradores.html">Compradores</a>
       </nav>
 
@@ -47,7 +47,7 @@
         <a class="mobile-nav__link" href="/admin-licor/licores.html">Licores</a>
         <a class="mobile-nav__link" href="/admin-licor/tasa.html">Tasa</a>
         <a class="mobile-nav__link" href="/admin-licor/verificaciones.html">Verificaciones</a>
-        <a class="mobile-nav__link" href="/admin-licor/croquis.html">Mesas</a>
+        <a class="mobile-nav__link" href="/admin-licor/mesas.html">Mesas</a>
         <a class="mobile-nav__link" href="/admin-licor/compradores.html">Compradores</a>
         <div class="mobile-nav__ctas">
           <a class="btn btn--secondary btn--block" data-admin-logout href="#">Salir</a>
@@ -56,7 +56,7 @@
     </div>
   </header>
 
-  <main class="page" id="main" data-admin-croquis data-require-admin>
+  <main class="page" id="main" data-admin-mesas data-require-admin>
     <section class="container">
       <div class="page__header">
         <div>
@@ -74,8 +74,8 @@
             <input class="input" type="file" accept="image/*" />
           </div>
           <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1rem">
-            <button class="btn btn--primary" type="button" data-croquis-save>Publicar</button>
-            <a class="btn btn--secondary" href="/licor/croquis.html">Ver como usuario</a>
+            <button class="btn btn--primary" type="button" data-mesas-save>Publicar</button>
+            <a class="btn btn--secondary" href="/licor/mesas.html">Ver como usuario</a>
           </div>
         </div>
 
@@ -83,14 +83,14 @@
           <h3 class="card__title" style="margin:0">Preview</h3>
           <p class="help" style="margin:.35rem 0 0">Al publicar, esta versión será la vigente para usuarios.</p>
           <div style="margin-top:1rem;border:1px solid rgba(255,255,255,.10);border-radius:14px;overflow:hidden;background:#000">
-            <img data-croquis-preview alt="Preview mesas" style="width:100%;height:auto;display:block" />
+            <img data-mesas-preview alt="Preview mesas" style="width:100%;height:auto;display:block" />
           </div>
         </div>
       </div>
 
       <div style="margin-top:1rem">
         <h2 class="section__title" style="text-align:left;font-size:1.5rem;margin:0 0 .5rem">Historial</h2>
-        <div class="grid" data-croquis-history></div>
+        <div class="grid" data-mesas-history></div>
       </div>
     </section>
   </main>

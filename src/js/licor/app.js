@@ -119,7 +119,7 @@ function renderOrders() {
     const badge = `badge--${o.status}`;
     const label = o.status === 'pending' ? 'Pendiente' : o.status === 'approved' ? 'Aprobada' : o.status === 'rejected' ? 'Rechazada' : 'Usada';
     const cta = o.status === 'approved'
-      ? `<a class="btn btn--primary" href="/licor/croquis.html">Ver mesas</a><a class="btn btn--secondary" href="https://wa.me/584140659985?text=Hola%20LA%20MUBI,%20quiero%20reservar%20mesa.%20Mi%20orden%20de%20licor%20es%20${o.id}" target="_blank" rel="noopener noreferrer">Reservar por WhatsApp</a>`
+      ? `<a class="btn btn--primary" href="/licor/mesas.html">Ver mesas</a><a class="btn btn--secondary" href="https://wa.me/584140659985?text=Hola%20LA%20MUBI,%20quiero%20reservar%20mesa.%20Mi%20orden%20de%20licor%20es%20${o.id}" target="_blank" rel="noopener noreferrer">Reservar por WhatsApp</a>`
       : o.status === 'rejected'
         ? `<a class="btn btn--primary" href="/licor/tienda.html">Crear nueva orden</a>`
         : `<a class="btn btn--secondary" href="/licor/confirmacion.html?order=${encodeURIComponent(o.id)}">Ver QR</a>`;
@@ -380,10 +380,10 @@ function initConfirmacion() {
   `;
 }
 
-function initCroquis() {
-  const root = qs('[data-croquis]');
+function initMesas() {
+  const root = qs('[data-mesas]');
   if (!root) return;
-  const current = JSON.parse(localStorage.getItem('lamubi_croquis_current') || 'null');
+  const current = JSON.parse(localStorage.getItem('lamubi_mesas_current') || 'null');
 
   if (!current?.dataUrl) {
     root.innerHTML = `<div class="card card--soft"><h3 class="card__title">Mesas no disponible</h3><p class="card__text">Aún no se ha publicado el mapa de mesas.</p></div>`;
@@ -421,4 +421,4 @@ renderCart();
 initCheckout();
 initVerificacion();
 initConfirmacion();
-initCroquis();
+initMesas();

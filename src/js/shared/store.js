@@ -5,8 +5,8 @@ const LS = {
   orders: 'lamubi_licor_orders',
   rate: 'lamubi_licor_rate',
   catalog: 'lamubi_licor_catalog',
-  croquisCurrent: 'lamubi_croquis_current',
-  croquisHistory: 'lamubi_croquis_history'
+  mesasCurrent: 'lamubi_mesas_current',
+  mesasHistory: 'lamubi_mesas_history'
 };
 
 function readJson(key, fallback) {
@@ -124,19 +124,19 @@ export function updateOrderStatus(orderId, status, reason) {
   return orders[idx];
 }
 
-export function setCroquisCurrent(dataUrl) {
-  writeJson(LS.croquisCurrent, { dataUrl, updatedAt: new Date().toISOString() });
-  const history = readJson(LS.croquisHistory, []);
+export function setMesasCurrent(dataUrl) {
+  writeJson(LS.mesasCurrent, { dataUrl, updatedAt: new Date().toISOString() });
+  const history = readJson(LS.mesasHistory, []);
   history.unshift({ dataUrl, updatedAt: new Date().toISOString() });
-  writeJson(LS.croquisHistory, history.slice(0, 20));
+  writeJson(LS.mesasHistory, history.slice(0, 20));
 }
 
-export function getCroquisCurrent() {
-  return readJson(LS.croquisCurrent, null);
+export function getMesasCurrent() {
+  return readJson(LS.mesasCurrent, null);
 }
 
-export function getCroquisHistory() {
-  return readJson(LS.croquisHistory, []);
+export function getMesasHistory() {
+  return readJson(LS.mesasHistory, []);
 }
 
 export function getMockCatalog() {

@@ -1,4 +1,4 @@
-import { clearAdminSession, getAdminSession, getCroquisHistory, setAdminSession, setCroquisCurrent, getOrders, updateOrderStatus, getMockRate, setMockRate, getMockCatalog, addCatalogItem } from '../shared/store.js';
+import { clearAdminSession, getAdminSession, getMesasHistory, setAdminSession, setMesasCurrent, getOrders, updateOrderStatus, getMockRate, setMockRate, getMockCatalog, addCatalogItem } from '../shared/store.js';
 import { bindNavActive, requireAdminSession, toast } from '../shared/ui.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
@@ -92,15 +92,15 @@ function initDashboard() {
   renderRecent();
 }
 
-function initCroquisUpload() {
-  const root = qs('[data-admin-croquis]');
+function initMesasUpload() {
+  const root = qs('[data-admin-mesas]');
   if (!root) return;
   if (!requireAdminSession(getAdminSession)) return;
 
   const file = qs('input[type="file"]', root);
-  const preview = qs('[data-croquis-preview]', root);
-  const save = qs('[data-croquis-save]', root);
-  const historyEl = qs('[data-croquis-history]', root);
+  const preview = qs('[data-mesas-preview]', root);
+  const save = qs('[data-mesas-save]', root);
+  const historyEl = qs('[data-mesas-history]', root);
 
   let dataUrl = null;
 
@@ -120,14 +120,14 @@ function initCroquisUpload() {
       toast('Selecciona una imagen primero', 'warning');
       return;
     }
-    setCroquisCurrent(dataUrl);
+    setMesasCurrent(dataUrl);
     toast('Mesas publicadas', 'success');
     renderHistory();
   });
 
   function renderHistory() {
     if (!historyEl) return;
-    const history = getCroquisHistory();
+    const history = getMesasHistory();
     if (!history.length) {
       historyEl.innerHTML = `<div class="card card--soft"><p class="card__text">Sin historial aún.</p></div>`;
       return;
@@ -555,6 +555,6 @@ initLogin();
 initDashboard();
 initTasa();
 initLicores();
-initCroquisUpload();
+initMesasUpload();
 initVerificaciones();
 initCompradores();
