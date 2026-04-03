@@ -84,8 +84,14 @@ function initRegistro() {
     const telefono = qs('input[name="telefono"]', form)?.value?.trim() || '';
     const email = qs('input[name="email"]', form).value.trim().toLowerCase();
     const password = qs('input[name="password"]', form).value;
-    if (!nombre || !Number.isFinite(edad) || !sexo || !telefono || !email || !password) {
-      toast('Completa email y contraseña', 'warning');
+    const password2 = qs('input[name="password2"]', form)?.value || '';
+    if (!nombre || !Number.isFinite(edad) || !sexo || !telefono || !email || !password || !password2) {
+      toast('Completa todos los campos', 'warning');
+      return;
+    }
+    if (password !== password2) {
+      toast('Las contraseñas no coinciden', 'warning');
+      qs('input[name="password2"]', form)?.focus();
       return;
     }
     setLicorSession({ email, nombre, edad, sexo, telefono });
