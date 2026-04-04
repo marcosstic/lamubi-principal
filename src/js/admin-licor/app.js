@@ -1,25 +1,39 @@
-import { clearAdminSession, getAdminSession, getMesasHistory, setAdminSession, setMesasCurrent, getOrders, updateOrderStatus, getMockRate, setMockRate, getMockCatalog, addCatalogItem } from '../shared/store.js';
+import { getMesasHistory, setMesasCurrent, getOrders, updateOrderStatus, getMockRate, setMockRate, getMockCatalog, addCatalogItem } from '../shared/store.js';
 import { bindNavActive, requireAdminSession, toast } from '../shared/ui.js';
+import { getAuthUser, getProfile, getSession, signInWithPassword, signOut } from '../supabase/auth.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
 
-function initGuards() {
-  qsa('[data-require-admin]').forEach(() => requireAdminSession(getAdminSession));
+async function hasAdminSession() {
+  const session = await getSession();
+  if (!session?.user?.id) return false;
+  const { data: profile } = await getProfile(session.user.id);
+  return !!profile && profile.role === 'admin';
 }
 
-function initHeader() {
+function initGuards() {
+  qsa('[data-require-admin]').forEach(() => {
+    (async () => {
+      await requireAdminSession(hasAdminSession);
+    })();
+  });
+}
+
+async function initHeader() {
   bindNavActive();
-  const user = getAdminSession();
   const userEl = qs('[data-admin-email]');
-  if (userEl) userEl.textContent = user?.email || '';
+  const authUser = await getAuthUser();
+  if (userEl) userEl.textContent = authUser?.email || '';
   const logout = qs('[data-admin-logout]');
   if (logout) {
     logout.addEventListener('click', (e) => {
       e.preventDefault();
-      clearAdminSession();
-      toast('Sesión cerrada', 'info');
-      setTimeout(() => location.href = '/admin-licor/login.html', 250);
+      (async () => {
+        await signOut();
+        toast('Sesión cerrada', 'info');
+        setTimeout(() => location.href = '/admin-licor/login.html', 250);
+      })();
     });
   }
 }
@@ -30,23 +44,44 @@ function initLogin() {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const email = qs('input[name="email"]', form).value.trim().toLowerCase();
-    const password = qs('input[name="password"]', form).value;
-    if (!email || !password) {
-      toast('Completa email y contraseña', 'warning');
-      return;
-    }
-    setAdminSession({ email });
-    toast('Bienvenido', 'success');
-    const next = new URLSearchParams(location.search).get('next');
-    setTimeout(() => location.href = next || '/admin-licor/index.html', 300);
+    (async () => {
+      const email = qs('input[name="email"]', form).value.trim().toLowerCase();
+      const password = qs('input[name="password"]', form).value;
+      if (!email || !password) {
+        toast('Completa email y contraseña', 'warning');
+        return;
+      }
+
+      const { data, error } = await signInWithPassword(email, password);
+      if (error) {
+        toast(error.message || 'Error iniciando sesión', 'warning');
+        return;
+      }
+
+      const authUser = data?.user || (await getAuthUser());
+      if (!authUser) {
+        toast('No se pudo obtener la sesión', 'warning');
+        return;
+      }
+
+      const { data: profile } = await getProfile(authUser.id);
+      if (!profile || profile.role !== 'admin') {
+        await signOut();
+        toast('No autorizado (requiere admin)', 'warning');
+        return;
+      }
+
+      toast('Bienvenido', 'success');
+      const next = new URLSearchParams(location.search).get('next');
+      setTimeout(() => location.href = next || '/admin-licor/index.html', 300);
+    })();
   });
 }
 
-function initDashboard() {
+async function initDashboard() {
   const root = qs('[data-admin-dashboard]');
   if (!root) return;
-  if (!requireAdminSession(getAdminSession)) return;
+  if (!(await requireAdminSession(hasAdminSession))) return;
 
   const orders = getOrders();
   const pending = orders.filter((o) => o.status === 'pending').length;
@@ -92,10 +127,10 @@ function initDashboard() {
   renderRecent();
 }
 
-function initMesasUpload() {
+async function initMesasUpload() {
   const root = qs('[data-admin-mesas]');
   if (!root) return;
-  if (!requireAdminSession(getAdminSession)) return;
+  if (!(await requireAdminSession(hasAdminSession))) return;
 
   const file = qs('input[type="file"]', root);
   const preview = qs('[data-mesas-preview]', root);
@@ -146,12 +181,12 @@ function initMesasUpload() {
   renderHistory();
 }
 
-function initTasa() {
+async function initTasa() {
   const root = qs('[data-require-admin]');
   const input = qs('[data-rate-input]');
   const save = qs('[data-rate-save]');
   if (!input || !save) return;
-  if (!requireAdminSession(getAdminSession)) return;
+  if (!(await requireAdminSession(hasAdminSession))) return;
 
   input.value = String(getMockRate());
 
@@ -165,10 +200,10 @@ function initTasa() {
   });
 }
 
-function initLicores() {
+async function initLicores() {
   const tbody = qs('[data-licor-tbody]');
   if (!tbody) return;
-  if (!requireAdminSession(getAdminSession)) return;
+  if (!(await requireAdminSession(hasAdminSession))) return;
 
   const btnNew = qs('[data-licor-new]');
   const formWrap = qs('[data-licor-form]');
@@ -228,10 +263,10 @@ function initLicores() {
   render();
 }
 
-function initCompradores() {
+async function initCompradores() {
   const app = qs('[data-buyers-app]');
   if (!app) return;
-  if (!requireAdminSession(getAdminSession)) return;
+  if (!(await requireAdminSession(hasAdminSession))) return;
 
   const TZ_VE = 'America/Caracas';
   const fmtVe = (iso) => {
@@ -457,10 +492,10 @@ function initCompradores() {
   });
 }
 
-function initVerificaciones() {
+async function initVerificaciones() {
   const root = qs('[data-admin-verificaciones]');
   if (!root) return;
-  if (!requireAdminSession(getAdminSession)) return;
+  if (!(await requireAdminSession(hasAdminSession))) return;
 
   const list = qs('[data-verif-list]', root);
   const detail = qs('[data-verif-detail]', root);

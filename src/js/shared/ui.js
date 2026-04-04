@@ -31,15 +31,17 @@ export function toast(message, variant = 'info') {
   }, 2500);
 }
 
-export function requireUserSession(getSessionFn) {
-  if (getSessionFn()) return true;
+export async function requireUserSession(getSessionFn) {
+  const ok = await getSessionFn();
+  if (ok) return true;
   const next = encodeURIComponent(location.pathname);
   location.href = `/licor/login.html?next=${next}`;
   return false;
 }
 
-export function requireAdminSession(getSessionFn) {
-  if (getSessionFn()) return true;
+export async function requireAdminSession(getSessionFn) {
+  const ok = await getSessionFn();
+  if (ok) return true;
   const next = encodeURIComponent(location.pathname);
   location.href = `/admin-licor/login.html?next=${next}`;
   return false;

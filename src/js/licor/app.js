@@ -1,5 +1,6 @@
-import { addToCart, clearCart, createOrder, getCart, getLicorSession, getMockCatalog, getMockRate, getOrders, setCart, setLicorSession, updateCartQty } from '../shared/store.js';
+import { addToCart, clearCart, createOrder, getCart, getMockCatalog, getMockRate, getOrders, setCart, updateCartQty } from '../shared/store.js';
 import { bindNavActive, requireUserSession, setCartBadge, toast } from '../shared/ui.js';
+import { getAuthUser, getProfile, getSession, signInWithPassword, signOut, signUpWithPassword } from '../supabase/auth.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -29,20 +30,22 @@ function fmtVes(n) {
   return `Bs ${Number(n || 0).toFixed(2)}`;
 }
 
-function initHeader() {
+async function initHeader() {
   bindNavActive();
   const cart = getCart();
   setCartBadge(cartCount(cart));
-  const user = getLicorSession();
   const userEl = qs('[data-user-email]');
-  if (userEl) userEl.textContent = user?.email || '';
+  const authUser = await getAuthUser();
+  if (userEl) userEl.textContent = authUser?.email || '';
   const logout = qs('[data-logout]');
   if (logout) {
     logout.addEventListener('click', (e) => {
       e.preventDefault();
-      localStorage.removeItem('lamubi_licor_session');
-      toast('Sesión cerrada', 'info');
-      setTimeout(() => location.href = '/licor/login.html', 250);
+      (async () => {
+        await signOut();
+        toast('Sesión cerrada', 'info');
+        setTimeout(() => location.href = '/licor/login.html', 250);
+      })();
     });
   }
 }
@@ -53,16 +56,30 @@ function initLogin() {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const email = qs('input[name="email"]', form).value.trim().toLowerCase();
-    const password = qs('input[name="password"]', form).value;
-    if (!email || !password) {
-      toast('Completa email y contraseña', 'warning');
-      return;
-    }
-    setLicorSession({ email });
-    toast('Bienvenido', 'success');
-    const next = new URLSearchParams(location.search).get('next');
-    setTimeout(() => location.href = next || '/licor/mi-cuenta.html', 300);
+    (async () => {
+      const email = qs('input[name="email"]', form).value.trim().toLowerCase();
+      const password = qs('input[name="password"]', form).value;
+      if (!email || !password) {
+        toast('Completa email y contraseña', 'warning');
+        return;
+      }
+
+      const { data, error } = await signInWithPassword(email, password);
+      if (error) {
+        toast(error.message || 'Error iniciando sesión', 'warning');
+        return;
+      }
+
+      const authUser = data?.user || (await getAuthUser());
+      if (!authUser) {
+        toast('No se pudo obtener la sesión', 'warning');
+        return;
+      }
+
+      toast('Bienvenido', 'success');
+      const next = new URLSearchParams(location.search).get('next');
+      setTimeout(() => location.href = next || '/licor/mi-cuenta.html', 300);
+    })();
   });
 
   qs('[data-reset-pass]')?.addEventListener('click', (e) => {
@@ -77,38 +94,65 @@ function initRegistro() {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const nombre = qs('input[name="nombre"]', form)?.value?.trim() || '';
-    const edadRaw = qs('input[name="edad"]', form)?.value || '';
-    const edad = Number(edadRaw);
-    const sexo = qs('select[name="sexo"]', form)?.value || '';
-    const telefono = qs('input[name="telefono"]', form)?.value?.trim() || '';
-    const email = qs('input[name="email"]', form).value.trim().toLowerCase();
-    const password = qs('input[name="password"]', form).value;
-    const password2 = qs('input[name="password2"]', form)?.value || '';
-    if (!nombre || !Number.isFinite(edad) || !sexo || !telefono || !email || !password || !password2) {
-      toast('Completa todos los campos', 'warning');
-      return;
-    }
-    if (password !== password2) {
-      toast('Las contraseñas no coinciden', 'warning');
-      qs('input[name="password2"]', form)?.focus();
-      return;
-    }
-    setLicorSession({ email, nombre, edad, sexo, telefono });
-    toast('Cuenta creada', 'success');
-    const next = new URLSearchParams(location.search).get('next');
-    setTimeout(() => location.href = next || '/licor/mi-cuenta.html', 300);
+    (async () => {
+      const nombre = qs('input[name="nombre"]', form)?.value?.trim() || '';
+      const edadRaw = qs('input[name="edad"]', form)?.value || '';
+      const edad = Number(edadRaw);
+      const sexo = qs('select[name="sexo"]', form)?.value || '';
+      const telefono = qs('input[name="telefono"]', form)?.value?.trim() || '';
+      const email = qs('input[name="email"]', form).value.trim().toLowerCase();
+      const password = qs('input[name="password"]', form).value;
+      const password2 = qs('input[name="password2"]', form)?.value || '';
+      if (!nombre || !Number.isFinite(edad) || !sexo || !telefono || !email || !password || !password2) {
+        toast('Completa todos los campos', 'warning');
+        return;
+      }
+      if (password !== password2) {
+        toast('Las contraseñas no coinciden', 'warning');
+        qs('input[name="password2"]', form)?.focus();
+        return;
+      }
+
+      const { data, error } = await signUpWithPassword(email, password, {
+        full_name: nombre,
+        phone: telefono,
+        edad,
+        sexo
+      });
+      if (error) {
+        toast(error.message || 'Error creando la cuenta', 'warning');
+        return;
+      }
+
+      const authUser = data?.user || (await getAuthUser());
+      if (!authUser) {
+        toast('Cuenta creada. Revisa tu correo para confirmar.', 'success');
+        const next = new URLSearchParams(location.search).get('next');
+        setTimeout(() => location.href = next || '/licor/login.html', 500);
+        return;
+      }
+
+      toast('Cuenta creada', 'success');
+      const next = new URLSearchParams(location.search).get('next');
+      setTimeout(() => location.href = next || '/licor/mi-cuenta.html', 300);
+    })();
   });
 }
 
-function renderOrders() {
+async function hasUserSession() {
+  const session = await getSession();
+  return !!session;
+}
+
+async function renderOrders() {
   const root = qs('[data-orders]');
   if (!root) return;
 
-  if (!requireUserSession(getLicorSession)) return;
+  if (!(await requireUserSession(hasUserSession))) return;
 
-  const user = getLicorSession();
-  const orders = getOrders().filter((o) => o.userEmail === user.email);
+  const authUser = await getAuthUser();
+  const email = (authUser?.email || '').trim().toLowerCase();
+  const orders = getOrders().filter((o) => o.userEmail === email);
 
   if (!orders.length) {
     root.innerHTML = `<div class="card card--soft"><h3 class="card__title">Aún no tienes órdenes</h3><p class="card__text">Entra a la tienda para hacer tu primera precompra.</p><div style="margin-top:1rem"><a class="btn btn--primary" href="/licor/tienda.html">Ir a tienda</a></div></div>`;
@@ -244,11 +288,11 @@ function renderCart() {
   }
 }
 
-function initCheckout() {
+async function initCheckout() {
   const root = qs('[data-checkout]');
   if (!root) return;
 
-  if (!requireUserSession(getLicorSession)) return;
+  if (!(await requireUserSession(hasUserSession))) return;
 
   const cart = getCart();
   if (!cart.items.length) {
@@ -300,11 +344,21 @@ function initCheckout() {
   });
 }
 
-function initVerificacion() {
+async function initVerificacion() {
   const form = qs('[data-verificacion-form]');
   if (!form) return;
 
-  if (!requireUserSession(getLicorSession)) return;
+  if (!(await requireUserSession(hasUserSession))) return;
+
+  const authUser = await getAuthUser();
+  const email = (authUser?.email || '').trim().toLowerCase();
+  if (!email) {
+    toast('Inicia sesión de nuevo', 'warning');
+    setTimeout(() => location.href = '/licor/login.html', 250);
+    return;
+  }
+
+  const { data: profile } = await getProfile(authUser.id);
 
   const cart = getCart();
   if (!cart.items.length) {
@@ -329,13 +383,12 @@ function initVerificacion() {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const user = getLicorSession();
     const order = createOrder({
-      userEmail: user.email,
+      userEmail: email,
       buyer: {
-        email: user.email,
-        nombre: user.nombre || '',
-        telefono: user.telefono || ''
+        email,
+        nombre: profile?.full_name || '',
+        telefono: profile?.phone || ''
       },
       items: cart.items,
       totals,
@@ -348,15 +401,22 @@ function initVerificacion() {
   });
 }
 
-function initConfirmacion() {
+async function initConfirmacion() {
   const root = qs('[data-confirmacion]');
   if (!root) return;
 
-  if (!requireUserSession(getLicorSession)) return;
+  if (!(await requireUserSession(hasUserSession))) return;
+
+  const authUser = await getAuthUser();
+  const email = (authUser?.email || '').trim().toLowerCase();
+  if (!email) {
+    toast('Inicia sesión de nuevo', 'warning');
+    setTimeout(() => location.href = '/licor/login.html', 250);
+    return;
+  }
 
   const id = new URLSearchParams(location.search).get('order');
-  const user = getLicorSession();
-  const order = getOrders().find((o) => o.id === id && o.userEmail === user.email);
+  const order = getOrders().find((o) => o.id === id && o.userEmail === email);
 
   if (!order) {
     root.innerHTML = `<div class="card card--soft"><h3 class="card__title">Orden no encontrada</h3><p class="card__text">Vuelve a mi cuenta.</p><div style="margin-top:1rem"><a class="btn btn--primary" href="/licor/mi-cuenta.html">Ir a mi cuenta</a></div></div>`;
@@ -408,7 +468,11 @@ function initMesas() {
 }
 
 function initGuards() {
-  qsa('[data-require-user]').forEach(() => requireUserSession(getLicorSession));
+  qsa('[data-require-user]').forEach(() => {
+    (async () => {
+      await requireUserSession(hasUserSession);
+    })();
+  });
 }
 
 initHeader();
