@@ -3,6 +3,7 @@ import { getAuthUser, getProfile, getSession, signInWithPassword, signOut } from
 import { createProduct, deleteProduct, deriveSkuAndSlugFromName, getProductImagePublicUrl, listProductsAdmin, updateProduct, uploadProductImage } from '../supabase/products.js';
 import { getCurrentExchangeRate, updateExchangeRate } from '../supabase/settings.js';
 import { listAllOrders, updateOrderStatus, getOrderWithDetails } from '../supabase/orders.js';
+import { listPendingPayments, updatePaymentStatus, getProofPublicUrl } from '../supabase/payments.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -523,28 +524,33 @@ async function initVerificaciones() {
 
   const list = qs('[data-verif-list]', root);
   const detail = qs('[data-verif-detail]', root);
+  const authUser = await getAuthUser();
 
   async function render() {
-    const { data: orders, error } = await listAllOrders({ status: 'awaiting_verification' });
-    const pending = (orders || []).filter((o) => o.status === 'awaiting_verification');
+    const { data: payments, error } = await listPendingPayments();
+    const pending = (payments || []).filter((p) => p.status === 'submitted');
 
     if (!pending.length) {
-      list.innerHTML = `<div class="card card--soft"><h3 class="card__title">Sin pendientes</h3><p class="card__text">No hay órdenes por verificar.</p></div>`;
-      detail.innerHTML = `<div class="card card--soft"><p class="card__text">Selecciona una orden para ver detalles.</p></div>`;
+      list.innerHTML = `<div class="card card--soft"><h3 class="card__title">Sin pendientes</h3><p class="card__text">No hay pagos por verificar.</p></div>`;
+      detail.innerHTML = `<div class="card card--soft"><p class="card__text">Selecciona un pago para ver detalles.</p></div>`;
       return;
     }
 
-    list.innerHTML = pending.map((o) => `
-      <button type="button" class="card card--soft" data-open="${o.id}" style="text-align:left;cursor:pointer;width:100%">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
-          <div>
-            <div style="font-weight:900">${o.id.slice(0, 8)}...</div>
-            <div class="help">Buyer: ${o.buyer_id?.slice(0, 8) || '—'}...</div>
+    list.innerHTML = pending.map((p) => {
+      const methodLabel = p.method === 'zelle' ? 'Zelle' : 'Pago Móvil';
+      const amountLabel = p.amount_usd ? `$${Number(p.amount_usd).toFixed(2)}` : '';
+      return `
+        <button type="button" class="card card--soft" data-open="${p.id}" style="text-align:left;cursor:pointer;width:100%">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+            <div>
+              <div style="font-weight:900">${p.id.slice(0, 8)}...</div>
+              <div class="help">${methodLabel} · ${amountLabel}</div>
+            </div>
+            <span class="badge badge--pending">Pendiente</span>
           </div>
-          <span class="badge badge--pending">Pendiente</span>
-        </div>
-      </button>
-    `).join('');
+        </button>
+      `;
+    }).join('');
 
     qsa('[data-open]', list).forEach((b) => {
       b.addEventListener('click', () => openDetail(b.getAttribute('data-open')));
@@ -553,31 +559,35 @@ async function initVerificaciones() {
     openDetail(pending[0].id);
   }
 
-  async function openDetail(id) {
-    const { data: o, error } = await getOrderWithDetails(id);
-    if (!o || error) return;
+  async function openDetail(paymentId) {
+    const { data: payments } = await listPendingPayments();
+    const p = (payments || []).find((x) => x.id === paymentId);
+    if (!p) return;
 
-    const items = o.order_items || [];
-    const totalUsd = Number(o.total_usd || 0).toFixed(2);
+    const proofUrl = p.proofs?.[0]?.storage_path ? getProofPublicUrl(p.proofs[0].storage_path) : null;
+    const methodLabel = p.method === 'zelle' ? 'Zelle' : 'Pago Móvil';
 
     detail.innerHTML = `
       <div class="card card--soft" style="display:grid;gap:1rem">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
           <div>
-            <h3 class="card__title" style="margin:0">Orden ${o.id.slice(0, 8)}...</h3>
-            <p class="help" style="margin:.25rem 0 0">Buyer: ${o.buyer_id?.slice(0, 8) || '—'}...</p>
+            <h3 class="card__title" style="margin:0">Pago ${p.id.slice(0, 8)}...</h3>
+            <p class="help" style="margin:.25rem 0 0">Orden: ${p.order_id?.slice(0, 8) || '—'}...</p>
           </div>
           <span class="badge badge--pending">Pendiente</span>
         </div>
-        <div>
-          <div class="label" style="margin-bottom:.35rem">Items</div>
-          <div class="card card--soft" style="display:grid;gap:.4rem">
-            ${items.length ? items.map((it) => `<div style="display:flex;justify-content:space-between;gap:1rem"><span class="help">${it.qty}× ${it.product?.name || 'Producto'}</span><strong>$${(Number(it.unit_price_usd || 0) * it.qty).toFixed(2)}</strong></div>`).join('') : '<div class="help">Sin items</div>'}
-          </div>
-        </div>
         <div class="grid grid--2">
-          <div class="card card--soft"><div class="label">Total USD</div><div style="font-weight:900;font-size:1.2rem">$${totalUsd}</div></div>
+          <div class="card card--soft"><div class="label">Método</div><div style="font-weight:600">${methodLabel}</div></div>
+          <div class="card card--soft"><div class="label">Monto USD</div><div style="font-weight:900;font-size:1.2rem">$${Number(p.amount_usd || 0).toFixed(2)}</div></div>
         </div>
+        ${proofUrl ? `
+          <div>
+            <div class="label" style="margin-bottom:.5rem">Comprobante</div>
+            <div style="border:1px solid rgba(255,255,255,.10);border-radius:14px;overflow:hidden">
+              <img src="${proofUrl}" alt="Comprobante" style="width:100%;height:auto;display:block" />
+            </div>
+          </div>
+        ` : '<div class="help">Sin comprobante adjunto</div>'}
         <div class="field">
           <div class="label">Motivo de rechazo (si aplica)</div>
           <input class="input" type="text" name="reason" placeholder="Ej: comprobante ilegible" />
@@ -590,12 +600,15 @@ async function initVerificaciones() {
     `;
 
     qs('[data-approve]', detail)?.addEventListener('click', async () => {
-      const res = await updateOrderStatus(id, 'approved');
+      // Update payment status
+      const res = await updatePaymentStatus(paymentId, 'approved', authUser?.id);
       if (res.error) {
-        toast(res.error.message || 'No se pudo aprobar la orden', 'warning');
+        toast(res.error.message || 'No se pudo aprobar el pago', 'warning');
         return;
       }
-      toast('Orden aprobada', 'success');
+      // Update order status
+      await updateOrderStatus(p.order_id, 'approved');
+      toast('Pago aprobado', 'success');
       await render();
     });
 
@@ -605,12 +618,19 @@ async function initVerificaciones() {
         toast('Ingresa un motivo de rechazo', 'warning');
         return;
       }
-      const res = await updateOrderStatus(id, 'rejected', { reason });
+      // Update payment status
+      const res = await updatePaymentStatus(paymentId, 'rejected', authUser?.id);
       if (res.error) {
-        toast(res.error.message || 'No se pudo rechazar la orden', 'warning');
+        toast(res.error.message || 'No se pudo rechazar el pago', 'warning');
         return;
       }
-      toast('Orden rechazada', 'info');
+      // Update order status
+      const orderRes = await updateOrderStatus(p.order_id, 'rejected');
+      if (orderRes.error) {
+        toast(orderRes.error.message || 'No se pudo actualizar la orden', 'warning');
+        return;
+      }
+      toast('Pago rechazado', 'info');
       await render();
     });
   }

@@ -4,6 +4,7 @@ import { getAuthUser, getProfile, getSession, signInWithPassword, signOut, signU
 import { getProductImagePublicUrl, listActiveProductsPublic } from '../supabase/products.js';
 import { createOrderWithItems, getBuyerOrderWithItems, listBuyerOrders } from '../supabase/orders.js';
 import { getCurrentExchangeRate } from '../supabase/settings.js';
+import { createPayment, uploadPaymentProof } from '../supabase/payments.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -382,14 +383,11 @@ async function initVerificacion() {
   if (!(await requireUserSession(hasUserSession))) return;
 
   const authUser = await getAuthUser();
-  const email = (authUser?.email || '').trim().toLowerCase();
-  if (!email) {
+  if (!authUser) {
     toast('Inicia sesión de nuevo', 'warning');
     setTimeout(() => location.href = '/licor/login.html', 250);
     return;
   }
-
-  const { data: profile } = await getProfile(authUser.id);
 
   const cart = getCart();
   if (!cart.items.length) {
@@ -413,22 +411,53 @@ async function initVerificacion() {
     `;
   }
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    (async () => {
-      const { data: order, error } = await createOrderWithItems({
-        buyer_id: authUser.id,
-        items: cart.items
-      });
-      if (error) {
-        toast(error.message || 'No se pudo crear la orden', 'warning');
-        return;
-      }
-      clearCart();
-      setCartBadge(0);
-      toast('Verificación enviada', 'success');
-      setTimeout(() => location.href = `/licor/confirmacion.html?order=${encodeURIComponent(order.id)}`, 300);
-    })();
+
+    const referencia = qs('input[name="referencia"]', form).value.trim();
+    const titular = qs('input[name="titular"]', form).value.trim();
+    const comprobanteFile = qs('input[name="comprobante"]', form).files?.[0];
+
+    if (!referencia || !titular || !comprobanteFile) {
+      toast('Completa todos los campos y adjunta el comprobante', 'warning');
+      return;
+    }
+
+    // Step 1: Create order
+    const { data: order, error: orderErr } = await createOrderWithItems({
+      buyer_id: authUser.id,
+      items: cart.items
+    });
+    if (orderErr) {
+      toast(orderErr.message || 'No se pudo crear la orden', 'warning');
+      return;
+    }
+
+    // Step 2: Create payment record
+    const { data: payment, error: paymentErr } = await createPayment({
+      orderId: order.id,
+      payerId: authUser.id,
+      method,
+      amountUsd: totals.totalUsd,
+      amountBs: totals.totalVes
+    });
+    if (paymentErr) {
+      toast(paymentErr.message || 'No se pudo registrar el pago', 'warning');
+      return;
+    }
+
+    // Step 3: Upload proof file
+    const { data: proof, error: proofErr } = await uploadPaymentProof(payment.id, comprobanteFile);
+    if (proofErr) {
+      toast(proofErr.message || 'No se pudo subir el comprobante', 'warning');
+      return;
+    }
+
+    // Success
+    clearCart();
+    setCartBadge(0);
+    toast('Verificación enviada', 'success');
+    setTimeout(() => location.href = `/licor/confirmacion.html?order=${encodeURIComponent(order.id)}`, 300);
   });
 }
 

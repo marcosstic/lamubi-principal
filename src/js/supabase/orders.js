@@ -31,12 +31,6 @@ export async function getBuyerOrderWithItems(buyer_id, order_id){
 
 export async function updateOrderStatus(orderId, status, opts = {}) {
   const patch = { status, updated_at: new Date().toISOString() };
-  if (status === 'approved') {
-    patch.status = 'approved';
-  }
-  if (status === 'rejected') {
-    patch.rejected_reason = opts.reason || null;
-  }
   return supabase
     .from(ORDERS_TABLE)
     .update(patch)
