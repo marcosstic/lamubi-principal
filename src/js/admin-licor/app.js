@@ -4,6 +4,7 @@ import { createProduct, deleteProduct, deriveSkuAndSlugFromName, getProductImage
 import { getCurrentExchangeRate, updateExchangeRate } from '../supabase/settings.js';
 import { listAllOrders, updateOrderStatus, getOrderWithDetails } from '../supabase/orders.js';
 import { listPendingPayments, updatePaymentStatus, getProofPublicUrl } from '../supabase/payments.js';
+import { getActiveMesasMap, publishMesasMap, getMesasHistory, getMesasImagePublicUrl } from '../supabase/mesas.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -140,53 +141,77 @@ async function initMesasUpload() {
   if (!root) return;
   if (!(await requireAdminSession(hasAdminSession))) return;
 
+  const authUser = await getAuthUser();
   const file = qs('input[type="file"]', root);
   const preview = qs('[data-mesas-preview]', root);
   const save = qs('[data-mesas-save]', root);
   const historyEl = qs('[data-mesas-history]', root);
 
-  let dataUrl = null;
+  let selectedFile = null;
 
   file?.addEventListener('change', () => {
     const f = file.files && file.files[0];
     if (!f) return;
+    selectedFile = f;
+    // Show preview using FileReader
     const reader = new FileReader();
     reader.onload = () => {
-      dataUrl = String(reader.result || '');
-      if (preview) preview.src = dataUrl;
+      if (preview) preview.src = reader.result;
     };
     reader.readAsDataURL(f);
   });
 
-  save?.addEventListener('click', () => {
-    if (!dataUrl) {
+  save?.addEventListener('click', async () => {
+    if (!selectedFile) {
       toast('Selecciona una imagen primero', 'warning');
       return;
     }
-    setMesasCurrent(dataUrl);
+
+    const { data, error } = await publishMesasMap(selectedFile, authUser?.id);
+    if (error) {
+      toast(error.message || 'No se pudo publicar el mapa', 'warning');
+      return;
+    }
+
     toast('Mesas publicadas', 'success');
-    renderHistory();
+    selectedFile = null;
+    file.value = '';
+    if (preview) preview.src = '';
+    await renderHistory();
   });
 
-  function renderHistory() {
+  async function renderHistory() {
     if (!historyEl) return;
-    const history = getMesasHistory();
+    const { data: history, error } = await getMesasHistory();
+    if (error) {
+      console.error('Error getting mesas history:', error);
+      historyEl.innerHTML = `<div class="card card--soft"><p class="card__text">Error cargando historial.</p></div>`;
+      return;
+    }
+    console.log('Mesas history:', history);
     if (!history.length) {
       historyEl.innerHTML = `<div class="card card--soft"><p class="card__text">Sin historial aún.</p></div>`;
       return;
     }
-    historyEl.innerHTML = history.map((h) => `
-      <div class="card card--soft" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
-        <div>
-          <div style="font-weight:900">${new Date(h.updatedAt).toLocaleString()}</div>
-          <div class="help">Versión publicada</div>
+    historyEl.innerHTML = history.map((h) => {
+      const imgUrl = h.images?.[0]?.storage_path ? getMesasImagePublicUrl(h.images[0].storage_path) : '';
+      console.log('Map:', h.id, 'Images:', h.images, 'URL:', imgUrl);
+      return `
+        <div class="card card--soft" style="display:grid;gap:.75rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+            <div>
+              <div style="font-weight:900">${new Date(h.created_at).toLocaleString('es-VE')}</div>
+              <div class="help">${h.status === 'active' ? 'Activo' : 'Archivado'}</div>
+            </div>
+            ${imgUrl ? `<a class="btn btn--secondary" href="${imgUrl}" target="_blank" rel="noopener noreferrer">Abrir</a>` : '<span class="help">Sin imagen</span>'}
+          </div>
+          ${imgUrl ? `<div style="border:1px solid rgba(255,255,255,.10);border-radius:14px;overflow:hidden;background:#000"><img src="${imgUrl}" alt="Mesas" style="width:100%;height:auto;display:block" /></div>` : ''}
         </div>
-        <a class="btn btn--secondary" href="${h.dataUrl}" target="_blank" rel="noopener noreferrer">Abrir</a>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
-  renderHistory();
+  await renderHistory();
 }
 
 async function initTasa() {

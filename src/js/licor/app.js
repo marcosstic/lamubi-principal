@@ -5,6 +5,7 @@ import { getProductImagePublicUrl, listActiveProductsPublic } from '../supabase/
 import { createOrderWithItems, getBuyerOrderWithItems, listBuyerOrders } from '../supabase/orders.js';
 import { getCurrentExchangeRate } from '../supabase/settings.js';
 import { createPayment, uploadPaymentProof } from '../supabase/payments.js';
+import { getActiveMesasMap, getMesasImagePublicUrl } from '../supabase/mesas.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -505,28 +506,33 @@ async function initConfirmacion() {
   `;
 }
 
-function initMesas() {
+async function initMesas() {
   const root = qs('[data-mesas]');
   if (!root) return;
-  const current = JSON.parse(localStorage.getItem('lamubi_mesas_current') || 'null');
 
-  if (!current?.dataUrl) {
+  const { data, error } = await getActiveMesasMap();
+  if (error || !data) {
     root.innerHTML = `<div class="card card--soft"><h3 class="card__title">Mesas no disponible</h3><p class="card__text">Aún no se ha publicado el mapa de mesas.</p></div>`;
     return;
   }
+
+  const imgUrl = data.images?.[0]?.storage_path ? getMesasImagePublicUrl(data.images[0].storage_path) : '';
+  const updatedAt = new Date(data.created_at).toLocaleString('es-VE');
 
   root.innerHTML = `
     <div class="card card--soft" style="display:grid;gap:1rem">
       <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap">
         <div>
           <h3 class="card__title" style="margin:0">Mesas actualizadas</h3>
-          <p class="help" style="margin:.2rem 0 0">Última actualización: ${new Date(current.updatedAt).toLocaleString()}</p>
+          <p class="help" style="margin:.2rem 0 0">Última actualización: ${updatedAt}</p>
         </div>
         <a class="btn btn--secondary" href="https://wa.me/584140659985?text=Hola%20LA%20MUBI,%20quiero%20reservar%20mesa." target="_blank" rel="noopener noreferrer">Reservar por WhatsApp</a>
       </div>
-      <div style="border:1px solid rgba(255,255,255,.10);border-radius:14px;overflow:hidden;background:#000">
-        <img src="${current.dataUrl}" alt="Mesas" style="width:100%;height:auto;display:block" />
-      </div>
+      ${imgUrl ? `
+        <div style="border:1px solid rgba(255,255,255,.10);border-radius:14px;overflow:hidden;background:#000">
+          <img src="${imgUrl}" alt="Mesas" style="width:100%;height:auto;display:block" />
+        </div>
+      ` : '<div class="help">Sin imagen disponible</div>'}
       <p class="help" style="margin:0">Leyenda: mesas tachadas o marcadas = no disponibles.</p>
     </div>
   `;
