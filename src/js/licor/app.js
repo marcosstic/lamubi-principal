@@ -1,6 +1,7 @@
-import { addToCart, clearCart, createOrder, getCart, getMockCatalog, getMockRate, getOrders, setCart, updateCartQty } from '../shared/store.js';
+import { addToCart, clearCart, createOrder, getCart, getMockRate, getOrders, setCart, updateCartQty } from '../shared/store.js';
 import { bindNavActive, requireUserSession, setCartBadge, toast } from '../shared/ui.js';
 import { getAuthUser, getProfile, getSession, signInWithPassword, signOut, signUpWithPassword } from '../supabase/auth.js';
+import { getProductImagePublicUrl, listActiveProductsPublic } from '../supabase/products.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -186,21 +187,29 @@ async function renderOrders() {
   }).join('');
 }
 
-function renderCatalog() {
+async function renderCatalog() {
   const root = qs('[data-catalog]');
   if (!root) return;
 
-  const catalog = getMockCatalog();
+  const { data, error } = await listActiveProductsPublic();
+  if (error) {
+    toast(error.message || 'No se pudo cargar el catálogo', 'warning');
+    return;
+  }
+
+  const catalog = (data || []).filter((p) => p.product_type === 'liquor');
   root.innerHTML = catalog.map((p) => {
-    const ves = p.priceUsd * getMockRate();
+    const priceUsd = Number(p.price_usd || 0);
+    const ves = priceUsd * getMockRate();
+    const imgUrl = getProductImagePublicUrl(p.image_path) || '/mubito.jpg';
     return `
       <article class="card card--tilt" style="display:grid;gap:.6rem">
         <div style="border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.10)">
-          <img src="${p.img}" alt="${p.name}" style="width:100%;height:180px;object-fit:cover;display:block" />
+          <img src="${imgUrl}" alt="${p.name}" style="width:100%;height:180px;object-fit:cover;display:block" />
         </div>
         <h3 class="card__title" style="margin:0">${p.name}</h3>
-        <p class="card__text" style="margin:0">${p.desc}</p>
-        <p class="help" style="margin:0">${fmtUsd(p.priceUsd)} · ${fmtVes(ves)}</p>
+        <p class="card__text" style="margin:0">${p.description || ''}</p>
+        <p class="help" style="margin:0">${fmtUsd(priceUsd)} · ${fmtVes(ves)}</p>
         <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.4rem">
           <button class="btn btn--primary" type="button" data-add-sku="${p.sku}">Agregar</button>
         </div>
@@ -213,7 +222,7 @@ function renderCatalog() {
       const sku = btn.getAttribute('data-add-sku');
       const p = catalog.find((x) => x.sku === sku);
       if (!p) return;
-      const cart = addToCart({ sku: p.sku, name: p.name, priceUsd: p.priceUsd });
+      const cart = addToCart({ sku: p.sku, name: p.name, priceUsd: Number(p.price_usd || 0) });
       setCartBadge(cartCount(cart));
       toast('Agregado al carrito', 'success');
       renderCart();

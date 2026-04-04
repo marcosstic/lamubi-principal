@@ -99,6 +99,10 @@
                 <input class="input" name="img" type="file" accept="image/*" />
               </div>
             </div>
+            <div class="field" style="margin-top:1rem">
+              <div class="label">Orden</div>
+              <input class="input" name="sortOrder" type="number" step="1" placeholder="0" value="0" required />
+            </div>
             <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1rem">
               <button class="btn btn--primary" type="submit">Guardar licor</button>
               <button class="btn btn--secondary" type="button" data-licor-cancel>Cancelar</button>
@@ -111,6 +115,7 @@
             <thead>
               <tr>
                 <th>Nombre</th>
+                <th>Orden</th>
                 <th>Precio USD</th>
                 <th>Activo</th>
                 <th>Acciones</th>

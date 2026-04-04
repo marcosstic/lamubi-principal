@@ -1,6 +1,7 @@
-import { getMesasHistory, setMesasCurrent, getOrders, updateOrderStatus, getMockRate, setMockRate, getMockCatalog, addCatalogItem } from '../shared/store.js';
+import { getMesasHistory, setMesasCurrent, getOrders, updateOrderStatus, getMockRate, setMockRate } from '../shared/store.js';
 import { bindNavActive, requireAdminSession, toast } from '../shared/ui.js';
 import { getAuthUser, getProfile, getSession, signInWithPassword, signOut } from '../supabase/auth.js';
+import { createProduct, deriveSkuAndSlugFromName, getProductImagePublicUrl, listProductsAdmin, updateProduct, uploadProductImage } from '../supabase/products.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -210,14 +211,34 @@ async function initLicores() {
   const form = qs('[data-licor-create-form]');
   const btnCancel = qs('[data-licor-cancel]');
 
-  function render() {
-    const catalog = getMockCatalog();
-    tbody.innerHTML = catalog.map((p) => `
+  async function render() {
+    const { data, error } = await listProductsAdmin();
+    if (error) {
+      toast(error.message || 'No se pudo cargar el catálogo', 'warning');
+      return;
+    }
+
+    const rows = (data || []).filter((p) => p.product_type === 'liquor');
+    tbody.innerHTML = rows.map((p) => `
       <tr>
-        <td>${p.name}</td>
-        <td>$${Number(p.priceUsd || 0).toFixed(2)}</td>
-        <td><span class="badge badge--approved">Sí</span></td>
-        <td><button class="btn btn--secondary" type="button" disabled>Editar</button></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:.6rem">
+            ${p.image_path ? `<img alt="" src="${getProductImagePublicUrl(p.image_path) || ''}" style="width:34px;height:34px;object-fit:cover;border-radius:8px" />` : ''}
+            <div>
+              <div style="font-weight:600">${p.name}</div>
+              <div class="help" style="margin:0">${p.sku || ''}</div>
+            </div>
+          </div>
+        </td>
+        <td>${Number(p.sort_order || 0)}</td>
+        <td>$${Number(p.price_usd || 0).toFixed(2)}</td>
+        <td><span class="badge badge--${p.active ? 'approved' : 'rejected'}">${p.active ? 'Sí' : 'No'}</span></td>
+        <td>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <button class="btn btn--secondary" type="button" data-licor-action="toggle-active" data-licor-id="${p.id}" data-licor-active="${p.active ? '1' : '0'}">${p.active ? 'Desactivar' : 'Activar'}</button>
+            <button class="btn btn--secondary" type="button" disabled>Editar</button>
+          </div>
+        </td>
       </tr>
     `).join('');
   }
@@ -231,36 +252,70 @@ async function initLicores() {
     if (formWrap) formWrap.style.display = 'none';
   });
 
+  tbody.addEventListener('click', async (e) => {
+    const btn = e.target?.closest?.('[data-licor-action="toggle-active"]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-licor-id') || '';
+    const isActive = btn.getAttribute('data-licor-active') === '1';
+    if (!id) return;
+
+    const nextActive = !isActive;
+    const res = await updateProduct(id, { active: nextActive });
+    if (res.error) {
+      toast(res.error.message || 'No se pudo actualizar', 'warning');
+      return;
+    }
+    toast('Actualizado', 'success');
+    await render();
+  });
+
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = qs('input[name="name"]', form).value.trim();
     const desc = qs('input[name="desc"]', form).value.trim();
     const priceUsd = Number(qs('input[name="priceUsd"]', form).value);
+    const sortOrder = Number(qs('input[name="sortOrder"]', form)?.value || 0);
     const file = qs('input[name="img"]', form).files?.[0] || null;
 
-    if (!name || !desc || !Number.isFinite(priceUsd)) {
+    if (!name || !desc || !Number.isFinite(priceUsd) || !Number.isFinite(sortOrder)) {
       toast('Completa nombre, descripción y precio', 'warning');
       return;
     }
 
-    let img = '/mubito.jpg';
+    const derived = deriveSkuAndSlugFromName(name);
+    let image_path = null;
     if (file) {
-      img = await new Promise((resolve) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result || '/mubito.jpg'));
-        r.onerror = () => resolve('/mubito.jpg');
-        r.readAsDataURL(file);
-      });
+      const up = await uploadProductImage(file, { sku: derived.sku });
+      if (up.error) {
+        toast(up.error.message || 'No se pudo subir la imagen', 'warning');
+        return;
+      }
+      image_path = up.data.path;
     }
 
-    const sku = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 32) || `sku-${Date.now()}`;
-    addCatalogItem({ sku, name, desc, priceUsd, img });
+    const ins = await createProduct({
+      sku: derived.sku,
+      slug: derived.slug,
+      product_type: 'liquor',
+      name,
+      description: desc,
+      price_usd: priceUsd,
+      active: true,
+      sort_order: sortOrder,
+      image_path
+    });
+
+    if (ins.error) {
+      toast(ins.error.message || 'No se pudo guardar el licor', 'warning');
+      return;
+    }
+
     toast('Licor guardado', 'success');
     if (formWrap) formWrap.style.display = 'none';
-    render();
+    await render();
   });
 
-  render();
+  await render();
 }
 
 async function initCompradores() {
