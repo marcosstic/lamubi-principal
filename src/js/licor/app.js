@@ -1,7 +1,9 @@
-import { addToCart, clearCart, createOrder, getCart, getMockRate, getOrders, setCart, updateCartQty } from '../shared/store.js';
+import { addToCart, clearCart, getCart, setCart, updateCartQty } from '../shared/store.js';
 import { bindNavActive, requireUserSession, setCartBadge, toast } from '../shared/ui.js';
 import { getAuthUser, getProfile, getSession, signInWithPassword, signOut, signUpWithPassword } from '../supabase/auth.js';
 import { getProductImagePublicUrl, listActiveProductsPublic } from '../supabase/products.js';
+import { createOrderWithItems, getBuyerOrderWithItems, listBuyerOrders } from '../supabase/orders.js';
+import { getCurrentExchangeRate } from '../supabase/settings.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -10,8 +12,21 @@ function cartCount(cart) {
   return (cart.items || []).reduce((n, x) => n + (x.qty || 0), 0);
 }
 
-function computeTotals(cart) {
-  const rate = getMockRate();
+// Cache the exchange rate in memory (loaded once from Supabase)
+let _cachedRate = null;
+
+async function getRate() {
+  if (_cachedRate) return _cachedRate;
+  const { data, error } = await getCurrentExchangeRate();
+  if (error || !data) {
+    _cachedRate = 600; // Fallback
+    return _cachedRate;
+  }
+  _cachedRate = data;
+  return _cachedRate;
+}
+
+function computeTotals(cart, rate) {
   const subtotalUsd = (cart.items || []).reduce((s, x) => s + x.priceUsd * x.qty, 0);
   const subtotalVes = subtotalUsd * rate;
   return {
@@ -152,8 +167,12 @@ async function renderOrders() {
   if (!(await requireUserSession(hasUserSession))) return;
 
   const authUser = await getAuthUser();
-  const email = (authUser?.email || '').trim().toLowerCase();
-  const orders = getOrders().filter((o) => o.userEmail === email);
+  if (!authUser?.id) return;
+  const { data: orders, error } = await listBuyerOrders(authUser.id);
+  if (error) {
+    toast(error.message || 'No se pudieron cargar tus órdenes', 'warning');
+    return;
+  }
 
   if (!orders.length) {
     root.innerHTML = `<div class="card card--soft"><h3 class="card__title">Aún no tienes órdenes</h3><p class="card__text">Entra a la tienda para hacer tu primera precompra.</p><div style="margin-top:1rem"><a class="btn btn--primary" href="/licor/tienda.html">Ir a tienda</a></div></div>`;
@@ -162,21 +181,21 @@ async function renderOrders() {
 
   root.innerHTML = orders.map((o) => {
     const badge = `badge--${o.status}`;
-    const label = o.status === 'pending' ? 'Pendiente' : o.status === 'approved' ? 'Aprobada' : o.status === 'rejected' ? 'Rechazada' : 'Usada';
+    const label = o.status === 'awaiting_verification' ? 'Pendiente' : o.status === 'approved' ? 'Aprobada' : o.status === 'rejected' ? 'Rechazada' : 'Usada';
     const cta = o.status === 'approved'
       ? `<a class="btn btn--primary" href="/licor/mesas.html">Ver mesas</a><a class="btn btn--secondary" href="https://wa.me/584140659985?text=Hola%20LA%20MUBI,%20quiero%20reservar%20mesa.%20Mi%20orden%20de%20licor%20es%20${o.id}" target="_blank" rel="noopener noreferrer">Reservar por WhatsApp</a>`
       : o.status === 'rejected'
         ? `<a class="btn btn--primary" href="/licor/tienda.html">Crear nueva orden</a>`
         : `<a class="btn btn--secondary" href="/licor/confirmacion.html?order=${encodeURIComponent(o.id)}">Ver QR</a>`;
 
-    const rejected = o.status === 'rejected' && o.rejectedReason ? `<p class="help" style="margin-top:.75rem">Motivo: ${o.rejectedReason}</p>` : '';
+    const rejected = '';
 
     return `
       <article class="card card--tilt" style="display:grid;gap:.6rem">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
           <div>
             <h3 class="card__title" style="margin:0">Orden ${o.id}</h3>
-            <p class="help" style="margin:.15rem 0 0">Total: ${fmtUsd(o.totals.totalUsd)} · ${fmtVes(o.totals.totalVes)}</p>
+            <p class="help" style="margin:.15rem 0 0">Total: ${fmtUsd(o.total_usd)}</p>
           </div>
           <span class="badge ${badge}">${label}</span>
         </div>
@@ -197,10 +216,11 @@ async function renderCatalog() {
     return;
   }
 
+  const rate = await getRate();
   const catalog = (data || []).filter((p) => p.product_type === 'liquor');
   root.innerHTML = catalog.map((p) => {
     const priceUsd = Number(p.price_usd || 0);
-    const ves = priceUsd * getMockRate();
+    const ves = priceUsd * rate;
     const imgUrl = getProductImagePublicUrl(p.image_path) || '/mubito.jpg';
     return `
       <article class="card card--tilt" style="display:grid;gap:.6rem">
@@ -230,12 +250,13 @@ async function renderCatalog() {
   });
 }
 
-function renderCart() {
+async function renderCart() {
   const root = qs('[data-cart]');
   if (!root) return;
 
   const cart = getCart();
-  const totals = computeTotals(cart);
+  const rate = await getRate();
+  const totals = computeTotals(cart, rate);
 
   if (!cart.items.length) {
     root.innerHTML = `<div class="card card--soft"><h3 class="card__title">Carrito vacío</h3><p class="card__text">Agrega productos para ver el total.</p></div>`;
@@ -309,7 +330,8 @@ async function initCheckout() {
     return;
   }
 
-  const totals = computeTotals(cart);
+  const rate = await getRate();
+  const totals = computeTotals(cart, rate);
   root.innerHTML = `
     <div class="card card--soft" style="display:grid;gap:1rem">
       <h3 class="card__title" style="margin:0">Resumen</h3>
@@ -375,7 +397,8 @@ async function initVerificacion() {
     return;
   }
 
-  const totals = computeTotals(cart);
+  const rate = await getRate();
+  const totals = computeTotals(cart, rate);
   const method = localStorage.getItem('lamubi_licor_payment_method') || 'pago-movil';
 
   const summary = qs('[data-summary]');
@@ -392,21 +415,20 @@ async function initVerificacion() {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const order = createOrder({
-      userEmail: email,
-      buyer: {
-        email,
-        nombre: profile?.full_name || '',
-        telefono: profile?.phone || ''
-      },
-      items: cart.items,
-      totals,
-      paymentMethod: method
-    });
-    clearCart();
-    setCartBadge(0);
-    toast('Verificación enviada', 'success');
-    setTimeout(() => location.href = `/licor/confirmacion.html?order=${encodeURIComponent(order.id)}`, 300);
+    (async () => {
+      const { data: order, error } = await createOrderWithItems({
+        buyer_id: authUser.id,
+        items: cart.items
+      });
+      if (error) {
+        toast(error.message || 'No se pudo crear la orden', 'warning');
+        return;
+      }
+      clearCart();
+      setCartBadge(0);
+      toast('Verificación enviada', 'success');
+      setTimeout(() => location.href = `/licor/confirmacion.html?order=${encodeURIComponent(order.id)}`, 300);
+    })();
   });
 }
 
@@ -425,20 +447,25 @@ async function initConfirmacion() {
   }
 
   const id = new URLSearchParams(location.search).get('order');
-  const order = getOrders().find((o) => o.id === id && o.userEmail === email);
+  if (!authUser?.id) return;
+  const { data: order, error } = await getBuyerOrderWithItems(authUser.id, id);
+  if (error) {
+    toast(error.message || 'No se pudo cargar la orden', 'warning');
+    return;
+  }
 
   if (!order) {
     root.innerHTML = `<div class="card card--soft"><h3 class="card__title">Orden no encontrada</h3><p class="card__text">Vuelve a mi cuenta.</p><div style="margin-top:1rem"><a class="btn btn--primary" href="/licor/mi-cuenta.html">Ir a mi cuenta</a></div></div>`;
     return;
   }
 
-  const label = order.status === 'pending' ? 'Pendiente' : order.status === 'approved' ? 'Aprobada' : order.status === 'rejected' ? 'Rechazada' : 'Usada';
+  const label = order.status === 'awaiting_verification' ? 'Pendiente' : order.status === 'approved' ? 'Aprobada' : order.status === 'rejected' ? 'Rechazada' : order.status === 'cancelled' ? 'Cancelada' : order.status === 'placed' ? 'Procesando' : 'Borrador';
   root.innerHTML = `
     <div class="card card--soft" style="display:grid;gap:1rem;justify-items:center;text-align:center">
       <h3 class="card__title" style="margin:0">Tu QR de licor</h3>
       <span class="badge badge--${order.status}">${label}</span>
       <div class="card" style="background:#fff;color:#000;max-width:520px;width:100%">
-        <div style="font-weight:900">LICOR:${order.qrToken}</div>
+        <div style="font-weight:900">LICOR:${order.id}</div>
         <div style="opacity:.75;font-size:.9rem;margin-top:.4rem">(string simple para demo)</div>
       </div>
       <p class="help" style="margin:0">Este QR no es válido hasta que el admin apruebe el pago.</p>

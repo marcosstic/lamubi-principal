@@ -1,7 +1,9 @@
-import { getMesasHistory, setMesasCurrent, getOrders, updateOrderStatus, getMockRate, setMockRate } from '../shared/store.js';
+import { getMesasHistory, setMesasCurrent, getOrders, getMockRate, setMockRate } from '../shared/store.js';
 import { bindNavActive, requireAdminSession, toast } from '../shared/ui.js';
 import { getAuthUser, getProfile, getSession, signInWithPassword, signOut } from '../supabase/auth.js';
-import { createProduct, deriveSkuAndSlugFromName, getProductImagePublicUrl, listProductsAdmin, updateProduct, uploadProductImage } from '../supabase/products.js';
+import { createProduct, deleteProduct, deriveSkuAndSlugFromName, getProductImagePublicUrl, listProductsAdmin, updateProduct, uploadProductImage } from '../supabase/products.js';
+import { getCurrentExchangeRate, updateExchangeRate } from '../supabase/settings.js';
+import { listAllOrders, updateOrderStatus } from '../supabase/orders.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -183,23 +185,41 @@ async function initMesasUpload() {
 }
 
 async function initTasa() {
-  const root = qs('[data-require-admin]');
   const input = qs('[data-rate-input]');
   const save = qs('[data-rate-save]');
+  const info = qs('[data-rate-info]');
   if (!input || !save) return;
   if (!(await requireAdminSession(hasAdminSession))) return;
 
-  input.value = String(getMockRate());
+  const authUser = await getAuthUser();
 
-  save.addEventListener('click', () => {
-    const ok = setMockRate(input.value);
-    if (!ok) {
-      toast('Ingresa una tasa válida', 'warning');
+  // Load current rate from Supabase
+  const { data: currentRate, error: rateErr, row: rateRow } = await getCurrentExchangeRate();
+  if (rateErr) {
+    toast('No se pudo cargar la tasa actual', 'warning');
+  } else if (currentRate) {
+    input.value = String(currentRate);
+    if (info && rateRow) {
+      info.textContent = `Última actualización: ${new Date(rateRow.created_at).toLocaleString('es-VE')}`;
+    }
+  } else {
+    input.value = '600';
+  }
+
+  save.addEventListener('click', async () => {
+    const res = await updateExchangeRate(input.value, authUser?.id);
+    if (res.error) {
+      toast(res.error.message || 'No se pudo guardar la tasa', 'warning');
       return;
     }
-    toast('Tasa guardada', 'success');
+    toast('Tasa guardada en Supabase', 'success');
+    if (info) {
+      info.textContent = `Actualizada: ${new Date().toLocaleString('es-VE')}`;
+    }
   });
 }
+
+let _editingProductId = null;
 
 async function initLicores() {
   const tbody = qs('[data-licor-tbody]');
@@ -210,6 +230,7 @@ async function initLicores() {
   const formWrap = qs('[data-licor-form]');
   const form = qs('[data-licor-create-form]');
   const btnCancel = qs('[data-licor-cancel]');
+  const formTitle = qs('[data-licor-form-title]');
 
   async function render() {
     const { data, error } = await listProductsAdmin();
@@ -236,7 +257,8 @@ async function initLicores() {
         <td>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap">
             <button class="btn btn--secondary" type="button" data-licor-action="toggle-active" data-licor-id="${p.id}" data-licor-active="${p.active ? '1' : '0'}">${p.active ? 'Desactivar' : 'Activar'}</button>
-            <button class="btn btn--secondary" type="button" disabled>Editar</button>
+            <button class="btn btn--secondary" type="button" data-licor-action="edit" data-licor-id="${p.id}">Editar</button>
+            <button class="btn btn--secondary" type="button" data-licor-action="delete" data-licor-id="${p.id}">Eliminar</button>
           </div>
         </td>
       </tr>
@@ -244,29 +266,55 @@ async function initLicores() {
   }
 
   btnNew?.addEventListener('click', () => {
+    _editingProductId = null;
     if (formWrap) formWrap.style.display = 'block';
+    if (formTitle) formTitle.textContent = 'Crear licor';
     form?.reset();
   });
 
   btnCancel?.addEventListener('click', () => {
+    _editingProductId = null;
     if (formWrap) formWrap.style.display = 'none';
   });
 
   tbody.addEventListener('click', async (e) => {
-    const btn = e.target?.closest?.('[data-licor-action="toggle-active"]');
-    if (!btn) return;
-    const id = btn.getAttribute('data-licor-id') || '';
-    const isActive = btn.getAttribute('data-licor-active') === '1';
-    if (!id) return;
-
-    const nextActive = !isActive;
-    const res = await updateProduct(id, { active: nextActive });
-    if (res.error) {
-      toast(res.error.message || 'No se pudo actualizar', 'warning');
+    const toggleBtn = e.target?.closest?.('[data-licor-action="toggle-active"]');
+    if (toggleBtn) {
+      const id = toggleBtn.getAttribute('data-licor-id') || '';
+      const isActive = toggleBtn.getAttribute('data-licor-active') === '1';
+      if (!id) return;
+      const nextActive = !isActive;
+      const res = await updateProduct(id, { active: nextActive });
+      if (res.error) {
+        toast(res.error.message || 'No se pudo actualizar', 'warning');
+        return;
+      }
+      toast('Actualizado', 'success');
+      await render();
       return;
     }
-    toast('Actualizado', 'success');
-    await render();
+
+    const editBtn = e.target?.closest?.('[data-licor-action="edit"]');
+    if (editBtn) {
+      const id = editBtn.getAttribute('data-licor-id') || '';
+      if (!id) return;
+      openEditForm(id);
+      return;
+    }
+
+    const deleteBtn = e.target?.closest?.('[data-licor-action="delete"]');
+    if (deleteBtn) {
+      const id = deleteBtn.getAttribute('data-licor-id') || '';
+      if (!id) return;
+      if (!confirm('¿Eliminar este producto? Esta acción no se puede deshacer.')) return;
+      const res = await deleteProduct(id);
+      if (res.error) {
+        toast(res.error.message || 'No se pudo eliminar', 'warning');
+        return;
+      }
+      toast('Producto eliminado', 'success');
+      await render();
+    }
   });
 
   form?.addEventListener('submit', async (e) => {
@@ -282,9 +330,9 @@ async function initLicores() {
       return;
     }
 
-    const derived = deriveSkuAndSlugFromName(name);
     let image_path = null;
     if (file) {
+      const derived = deriveSkuAndSlugFromName(name);
       const up = await uploadProductImage(file, { sku: derived.sku });
       if (up.error) {
         toast(up.error.message || 'No se pudo subir la imagen', 'warning');
@@ -293,29 +341,70 @@ async function initLicores() {
       image_path = up.data.path;
     }
 
-    const ins = await createProduct({
-      sku: derived.sku,
-      slug: derived.slug,
-      product_type: 'liquor',
-      name,
-      description: desc,
-      price_usd: priceUsd,
-      active: true,
-      sort_order: sortOrder,
-      image_path
-    });
+    let res;
+    if (_editingProductId) {
+      // Update existing product
+      const patch = { name, description: desc, price_usd: priceUsd, sort_order: sortOrder };
+      if (image_path) patch.image_path = image_path;
+      res = await updateProduct(_editingProductId, patch);
+    } else {
+      // Create new product
+      const derived = deriveSkuAndSlugFromName(name);
+      res = await createProduct({
+        sku: derived.sku,
+        slug: derived.slug,
+        product_type: 'liquor',
+        name,
+        description: desc,
+        price_usd: priceUsd,
+        active: true,
+        sort_order: sortOrder,
+        image_path
+      });
+    }
 
-    if (ins.error) {
-      toast(ins.error.message || 'No se pudo guardar el licor', 'warning');
+    if (res.error) {
+      toast(res.error.message || 'No se pudo guardar el licor', 'warning');
       return;
     }
 
-    toast('Licor guardado', 'success');
+    toast(_editingProductId ? 'Producto actualizado' : 'Licor guardado', 'success');
+    _editingProductId = null;
     if (formWrap) formWrap.style.display = 'none';
     await render();
   });
 
   await render();
+}
+
+async function openEditForm(id) {
+  const formWrap = qs('[data-licor-form]');
+  const form = qs('[data-licor-create-form]');
+  const formTitle = qs('[data-licor-form-title]');
+  if (!formWrap || !form) return;
+
+  // Get product data
+  const { data, error } = await listProductsAdmin();
+  if (error) {
+    toast('No se pudo cargar el producto', 'warning');
+    return;
+  }
+
+  const product = (data || []).find((p) => p.id === id);
+  if (!product) {
+    toast('Producto no encontrado', 'warning');
+    return;
+  }
+
+  _editingProductId = id;
+  formWrap.style.display = 'block';
+  if (formTitle) formTitle.textContent = 'Editar licor';
+
+  // Pre-fill form
+  qs('input[name="name"]', form).value = product.name || '';
+  qs('input[name="desc"]', form).value = product.description || '';
+  qs('input[name="priceUsd"]', form).value = Number(product.price_usd || 0);
+  qs('input[name="sortOrder"]', form).value = Number(product.sort_order || 0);
 }
 
 async function initCompradores() {

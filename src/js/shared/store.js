@@ -139,41 +139,34 @@ export function getMesasHistory() {
   return readJson(LS.mesasHistory, []);
 }
 
+// ============================================================
+// DEPRECATED: These functions are kept for backward compatibility
+// but should NOT be used in new code.
+// - Use listActiveProductsPublic() from supabase/products.js instead of getMockCatalog
+// - Use getCurrentExchangeRate() from supabase/settings.js instead of getMockRate
+// ============================================================
+
 export function getMockCatalog() {
-  const stored = readJson(LS.catalog, null);
-  if (Array.isArray(stored) && stored.length) return stored;
-  return [
-    { sku: 'cacique-dorado', name: 'Cacique Dorado', desc: 'Ron venezolano premium.', priceUsd: 20, img: '/mubito.jpg' },
-    { sku: 'cacique-500', name: 'Cacique 500', desc: 'Edición especial.', priceUsd: 35, img: '/mubito.jpg' },
-    { sku: 'buchanans', name: "Buchanan's", desc: 'Whisky premium.', priceUsd: 60, img: '/mubito.jpg' },
-    { sku: 'balde-cervezas', name: 'Balde de cervezas', desc: 'Ideal para compartir.', priceUsd: 7, img: '/mubito.jpg' }
-  ];
+  console.warn('[DEPRECATED] getMockCatalog() is deprecated. Use listActiveProductsPublic() from supabase/products.js');
+  return [];
 }
 
 export function setCatalog(items) {
-  if (!Array.isArray(items)) return false;
-  writeJson(LS.catalog, items);
-  return true;
+  console.warn('[DEPRECATED] setCatalog() is deprecated. Use createProduct() from supabase/products.js');
+  return false;
 }
 
 export function addCatalogItem(item) {
-  const list = readJson(LS.catalog, null);
-  const base = Array.isArray(list) ? list : getMockCatalog();
-  const next = [item, ...base];
-  writeJson(LS.catalog, next);
-  return next;
+  console.warn('[DEPRECATED] addCatalogItem() is deprecated. Use createProduct() from supabase/products.js');
+  return [];
 }
 
 export function getMockRate() {
-  const raw = localStorage.getItem(LS.rate);
-  const n = Number(raw || 600);
-  if (!Number.isFinite(n) || n <= 0) return 600;
-  return n;
+  console.warn('[DEPRECATED] getMockRate() is deprecated. Use getCurrentExchangeRate() from supabase/settings.js');
+  return 600;
 }
 
 export function setMockRate(rate) {
-  const n = Number(rate);
-  if (!Number.isFinite(n) || n <= 0) return false;
-  localStorage.setItem(LS.rate, String(n));
-  return true;
+  console.warn('[DEPRECATED] setMockRate() is deprecated. Use updateExchangeRate() from supabase/settings.js');
+  return false;
 }

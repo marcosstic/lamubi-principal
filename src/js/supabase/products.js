@@ -63,12 +63,13 @@ export async function updateProduct(id, patch) {
 }
 
 export async function deleteProduct(id) {
-  return supabase
+  const { error } = await supabase
     .from(PRODUCTS_TABLE)
     .delete()
-    .eq('id', id)
-    .select('id')
-    .single();
+    .eq('id', id);
+
+  if (error) return { data: null, error };
+  return { data: { id }, error: null };
 }
 
 export function getProductImagePublicUrl(image_path) {
