@@ -965,6 +965,22 @@ async function initScanner() {
         if (!html5QrCode) {
           debug('Creating Html5Qrcode instance');
           html5QrCode = new Html5Qrcode('qr-reader');
+          
+          // iOS CRITICAL FIX: Add required video attributes after Html5Qrcode creates the video element
+          if (isIOS) {
+            setTimeout(() => {
+              const videoElement = document.querySelector('#qr-reader video');
+              if (videoElement) {
+                debug('Applying iOS required video attributes');
+                videoElement.setAttribute('playsinline', '');
+                videoElement.setAttribute('muted', '');
+                videoElement.setAttribute('autoplay', '');
+                debug('iOS video attributes set: playsinline, muted, autoplay');
+              } else {
+                debug('WARNING: iOS video element not found after Html5Qrcode creation');
+              }
+            }, 100);
+          }
         }
 
         // iOS-specific camera configuration
@@ -1004,14 +1020,21 @@ async function initScanner() {
         toggleBtn.className = 'btn-scan stop';
       } catch (err) {
         debug('Error starting scanner: ' + err.message);
+        debug('Error details:', err);
         
         // iOS-specific error handling
-        if (isIOS && err.message.includes('NotAllowedError')) {
-          toast('❌ Permiso de cámara denegado. Ve a Configuración > Safari > Cámara', 'error');
-        } else if (isIOS && err.message.includes('NotFoundError')) {
-          toast('❌ No se encontró cámara. Verifica que tu dispositivo tenga cámara', 'error');
-        } else if (err.message.includes('HTTPS')) {
-          toast('⚠️ La cámara requiere HTTPS en iOS', 'warning');
+        if (isIOS) {
+          if (err.message.includes('NotAllowedError') || err.message.includes('Permission denied')) {
+            toast('❌ Permiso de cámara denegado. Ve a Configuración > Safari > Cámara', 'error');
+          } else if (err.message.includes('NotFoundError') || err.message.includes('DevicesNotFoundError')) {
+            toast('❌ No se encontró cámara. Verifica que tu dispositivo tenga cámara', 'error');
+          } else if (err.message.includes('HTTPS') || err.message.includes('secure origin')) {
+            toast('⚠️ La cámara requiere HTTPS en iOS', 'warning');
+          } else if (err.message.includes('OverconstrainedError') || err.message.includes('ConstraintNotSatisfiedError')) {
+            toast('⚠️ Configuración de cámara no compatible. Intenta cambiar de cámara', 'warning');
+          } else {
+            toast('No se pudo iniciar la cámara en iOS: ' + err.message, 'warning');
+          }
         } else {
           toast('No se pudo iniciar la cámara: ' + err.message, 'warning');
         }
