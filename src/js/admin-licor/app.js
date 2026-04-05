@@ -666,55 +666,58 @@ async function initVerificaciones() {
 
 async function initScanner() {
   const readerEl = document.getElementById('qr-reader');
-  const resultEl = qs('[data-scan-result]');
-  const historyEl = qs('[data-scan-history]');
-  if (!readerEl) return;
+  const resultContainer = document.getElementById('result-container');
+  const historyContainer = document.getElementById('scan-history');
+  const toggleBtn = document.getElementById('btn-toggle-scan');
+  
+  if (!readerEl || !toggleBtn) return;
   if (!(await requireAdminSession(hasAdminSession))) return;
 
   const authUser = await getAuthUser();
   const scanHistory = [];
   let html5QrCode = null;
-  let currentCamera = 'environment';
+  let isScanning = false;
+  let lastScanTime = 0;
+  const SCAN_COOLDOWN = 3000; // 3 seconds cooldown
 
   function showResult(success, message, data = null) {
-    if (!resultEl) return;
-    const color = success ? 'var(--success)' : 'var(--danger)';
+    if (!resultContainer) return;
     const icon = success ? '✅' : '❌';
     let details = '';
     if (data?.buyer) {
       details = `
-        <div style="margin-top:1rem;display:grid;gap:.5rem">
-          <div class="help"><strong>Comprador:</strong> ${data.buyer?.full_name || '—'}</div>
-          <div class="help"><strong>Email:</strong> ${data.buyer?.email || '—'}</div>
-          <div class="help"><strong>Orden:</strong> ${data.order?.id?.slice(0, 8) || '—'}...</div>
-          <div class="help"><strong>Total:</strong> $${Number(data.order?.total_usd || 0).toFixed(2)}</div>
+        <div class="details">
+          <div><strong>Comprador:</strong> ${data.buyer?.full_name || '—'}</div>
+          <div><strong>Orden:</strong> ${data.order?.id?.slice(0, 8) || '—'}...</div>
+          <div><strong>Total:</strong> $${Number(data.order?.total_usd || 0).toFixed(2)}</div>
         </div>
       `;
     }
-    resultEl.innerHTML = `
-      <div class="card card--soft" style="border-left:4px solid ${color}">
-        <div style="display:flex;align-items:center;gap:.5rem">
-          <span style="font-size:1.5rem">${icon}</span>
-          <div>
-            <div style="font-weight:900;color:${color}">${message}</div>
-            ${details}
-          </div>
-        </div>
+    resultContainer.innerHTML = `
+      <div class="result-card ${success ? 'success' : 'error'}">
+        <div class="icon">${icon}</div>
+        <div class="message">${message}</div>
+        ${details}
       </div>
     `;
   }
 
-  function addToHistory(token, success, message) {
-    scanHistory.unshift({ token: token.slice(0, 8) + '...', success, message, time: new Date().toLocaleString('es-VE') });
+  function addToHistory(orderId, success, message) {
+    scanHistory.unshift({
+      orderId: orderId.slice(0, 8) + '...',
+      success,
+      message,
+      time: new Date().toLocaleString('es-VE')
+    });
     if (scanHistory.length > 10) scanHistory.pop();
-    if (!historyEl) return;
-    historyEl.innerHTML = scanHistory.map((h) => `
-      <div class="card card--soft" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    if (!historyContainer) return;
+    historyContainer.innerHTML = scanHistory.map((h) => `
+      <div class="history-item">
         <div>
-          <div style="font-weight:600">${h.token}</div>
-          <div class="help">${h.time}</div>
+          <div style="font-weight:600">${h.orderId}</div>
+          <div class="time">${h.time}</div>
         </div>
-        <span class="badge badge--${h.success ? 'approved' : 'rejected'}">${h.success ? 'Válido' : 'Inválido'}</span>
+        <span class="${h.success ? 'badge-valid' : 'badge-invalid'}">${h.success ? 'Válido' : 'Inválido'}</span>
       </div>
     `).join('');
   }
@@ -722,79 +725,105 @@ async function initScanner() {
   async function onScanSuccess(decodedText) {
     if (!authUser?.id) return;
     
-    // Stop scanning temporarily
-    if (html5QrCode) {
+    // Cooldown check
+    const now = Date.now();
+    if (now - lastScanTime < SCAN_COOLDOWN) return;
+    lastScanTime = now;
+
+    // Pause scanning
+    if (html5QrCode && isScanning) {
       await html5QrCode.pause();
+      isScanning = false;
+      toggleBtn.textContent = '📷 Reanudar Scanner';
+      toggleBtn.className = 'btn-scan start';
     }
 
     try {
+      console.log('Scanned QR:', decodedText);
       const { data, error } = await redeemQR(decodedText, authUser.id, navigator.userAgent);
       
       if (data?.success) {
-        showResult(true, 'QR Válido - Orden canjeada', data);
+        showResult(true, '✅ QR Válido - Orden canjeada', data);
         addToHistory(decodedText, true, 'Canjeado');
         toast('QR canjeado exitosamente', 'success');
       } else {
-        showResult(false, data?.error || 'QR Inválido');
+        showResult(false, '❌ ' + (data?.error || 'QR Inválido'));
         addToHistory(decodedText, false, data?.error || 'Inválido');
         toast(data?.error || 'QR inválido', 'warning');
       }
     } catch (err) {
-      showResult(false, 'Error al procesar QR');
+      console.error('Scan error:', err);
+      showResult(false, '❌ Error al procesar QR');
       addToHistory(decodedText, false, 'Error');
       toast('Error al procesar QR', 'error');
     }
 
-    // Resume scanning after 2 seconds
+    // Resume scanning after 3 seconds
     setTimeout(async () => {
-      if (html5QrCode) {
-        await html5QrCode.resume();
+      if (html5QrCode && !isScanning) {
+        try {
+          await html5QrCode.resume();
+          isScanning = true;
+          toggleBtn.textContent = '⏸ Pausar Scanner';
+          toggleBtn.className = 'btn-scan stop';
+        } catch (e) {
+          console.error('Resume error:', e);
+        }
       }
-    }, 2000);
+    }, 3000);
   }
 
-  // Initialize scanner
-  html5QrCode = new Html5Qrcode('qr-reader');
-  
-  const config = {
-    fps: 10,
-    qrbox: { width: 250, height: 250 },
-    aspectRatio: 1.0
-  };
+  // Toggle scan button
+  toggleBtn.addEventListener('click', async () => {
+    if (isScanning) {
+      // Stop scanning
+      if (html5QrCode) {
+        await html5QrCode.pause();
+        isScanning = false;
+      }
+      toggleBtn.textContent = '📷 Iniciar Scanner';
+      toggleBtn.className = 'btn-scan start';
+      readerEl.classList.add('hidden');
+    } else {
+      // Start scanning
+      readerEl.classList.remove('hidden');
+      toggleBtn.textContent = '⏳ Iniciando...';
+      toggleBtn.disabled = true;
 
-  try {
-    await html5QrCode.start(
-      { facingMode: currentCamera },
-      config,
-      onScanSuccess
-    );
-  } catch (err) {
-    console.error('Error starting scanner:', err);
-    toast('No se pudo iniciar la cámara', 'warning');
-  }
+      try {
+        if (!html5QrCode) {
+          html5QrCode = new Html5Qrcode('qr-reader');
+        }
 
-  // Switch camera button
-  qs('[data-switch-camera]')?.addEventListener('click', async () => {
-    currentCamera = currentCamera === 'environment' ? 'user' : 'environment';
-    if (html5QrCode) {
-      await html5QrCode.stop();
-      await html5QrCode.start({ facingMode: currentCamera }, config, onScanSuccess);
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          disableFlip: false
+        };
+
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          config,
+          onScanSuccess,
+          (errorMessage) => {
+            // Ignore parse errors
+          }
+        );
+
+        isScanning = true;
+        toggleBtn.textContent = '⏸ Pausar Scanner';
+        toggleBtn.className = 'btn-scan stop';
+      } catch (err) {
+        console.error('Error starting scanner:', err);
+        toast('No se pudo iniciar la cámara: ' + err.message, 'warning');
+        toggleBtn.textContent = '📷 Iniciar Scanner';
+        toggleBtn.className = 'btn-scan start';
+        readerEl.classList.add('hidden');
+      } finally {
+        toggleBtn.disabled = false;
+      }
     }
-  });
-
-  // File upload fallback
-  qs('[data-scan-file]')?.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !html5QrCode) return;
-    
-    try {
-      const decodedText = await html5QrCode.scanFile(file, true);
-      await onScanSuccess(decodedText);
-    } catch (err) {
-      showResult(false, 'No se encontró un QR en la imagen');
-      toast('No se encontró un QR válido', 'warning');
-    }
-    e.target.value = '';
   });
 }
 
