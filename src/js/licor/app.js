@@ -949,73 +949,99 @@ async function initMiQR() {
     return;
   }
 
-  // Render buyer info
-  const buyerInfoEl = qs('[data-buyer-info]');
-  if (buyerInfoEl) {
-    buyerInfoEl.innerHTML = `
-      <div class="qr-ticket__info-item"><strong>Nombre:</strong> ${data.buyer?.full_name || '—'}</div>
-      <div class="qr-ticket__info-item"><strong>Email:</strong> ${data.buyer?.email || '—'}</div>
-      <div class="qr-ticket__info-item"><strong>Teléfono:</strong> ${data.buyer?.phone || '—'}</div>
-    `;
-  }
+  const statusColor = data.order?.status === 'approved' ? '#11bb75' : data.order?.status === 'rejected' ? '#f44336' : '#ff9800';
+  const statusLabel = data.order?.status === 'approved' ? 'Aprobada' : data.order?.status === 'rejected' ? 'Rechazada' : 'Pendiente';
+  const buyerName = data.buyer?.full_name || '—';
+  const buyerPhone = data.buyer?.phone || '—';
+  const buyerEmail = data.buyer?.email || '—';
 
-  // Render products
-  const productsEl = qs('[data-products]');
-  if (productsEl) {
-    productsEl.innerHTML = (data.order?.items || []).map((item) => `
-      <div class="qr-ticket__product">
-        <span class="qr-ticket__product-name">${item.product?.name || 'Producto'}</span>
-        <span class="qr-ticket__product-qty">x${item.qty}</span>
+  // Render two-column layout
+  if (content) {
+    content.innerHTML = `
+      <div style="max-width:700px;margin:0 auto">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <!-- LEFT COLUMN: TICKET -->
+          <div style="background:#fff;border-radius:20px;padding:1.5rem;border:2px solid #bb1175;overflow:hidden">
+            <div style="text-align:center;margin-bottom:1rem">
+              <img src="/LaMubiMCBOLogo1.png" alt="LA MUBI" style="width:80px;height:auto;margin:0 auto;display:block" />
+            </div>
+
+            <div style="margin-bottom:1rem">
+              <h3 style="margin:0 0 .75rem;font-size:1rem;font-weight:700;color:#bb1175;text-align:center">👤 Datos del Comprador</h3>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+                <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Nombre</div>
+                  <div style="font-weight:600;color:#000;font-size:.8rem">${buyerName}</div>
+                </div>
+                <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Teléfono</div>
+                  <div style="font-weight:600;color:#000;font-size:.8rem">${buyerPhone}</div>
+                </div>
+                <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center;grid-column:1/-1">
+                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Email</div>
+                  <div style="font-weight:600;color:#000;font-size:.8rem">${buyerEmail}</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-bottom:1rem">
+              <h3 style="margin:0 0 .75rem;font-size:1rem;font-weight:700;color:#bb1175;text-align:center">🎫 Detalles del Ticket</h3>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+                <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Estado</div>
+                  <div style="font-weight:600;color:${statusColor};font-size:.85rem">${statusLabel}</div>
+                </div>
+                <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Total</div>
+                  <div style="font-weight:600;color:#000;font-size:.85rem">$${Number(data.order?.total_usd || 0).toFixed(2)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="text-align:center;padding-top:1rem;border-top:2px solid #bb1175">
+              <div style="font-size:1.5rem;font-weight:900;color:#bb1175;letter-spacing:.2em;margin-bottom:.5rem">LICOR</div>
+              <div style="font-size:.85rem;font-weight:700;color:#000;margin-bottom:.75rem">TICKET: ${data.order?.id?.slice(0, 8)}</div>
+              <div id="qr-code" style="display:inline-block;padding:.5rem;background:#fff"></div>
+              <div style="font-size:.85rem;font-weight:600;color:#000;margin-top:.5rem">Código: ${data.order?.id?.slice(0, 8)}</div>
+            </div>
+          </div>
+
+          <!-- RIGHT COLUMN: PRODUCTS -->
+          <div style="background:#fff;border-radius:20px;padding:1.5rem;border:2px solid #bb1175;overflow:hidden">
+            <h3 style="margin:0 0 1rem;font-size:1rem;font-weight:700;color:#bb1175;text-align:center">🛒 Productos Comprados</h3>
+            <div style="display:grid;gap:.4rem">
+              ${(data.order?.items || []).map((item) => `
+                <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-weight:600;color:#000;font-size:.85rem">${item.product?.name || 'Producto'}</span>
+                  <span style="background:#bb1175;color:#fff;padding:.15rem .5rem;border-radius:999px;font-size:.75rem;font-weight:700">x${item.qty}</span>
+                </div>
+              `).join('') || '<div style="text-align:center;color:#666">Sin productos</div>'}
+            </div>
+            <div style="margin-top:1rem;text-align:center">
+              <span style="background:#bb1175;color:#fff;padding:.5rem 1rem;border-radius:999px;font-size:.85rem;font-weight:700">${(data.order?.items || []).length} producto${(data.order?.items || []).length !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin-top:1.5rem">
+          <a class="btn btn--primary" href="/licor/mi-cuenta.html">Volver a mi cuenta</a>
+          ${data.order?.status === 'approved' ? `<a class="btn btn--secondary" href="/licor/mesas.html">Ver mesas</a>` : ''}
+        </div>
       </div>
-    `).join('') || '<div class="qr-ticket__info-item">Sin productos</div>';
-  }
+    `;
 
-  // Render order ID
-  const orderIdEl = qs('[data-order-id]');
-  if (orderIdEl) {
-    orderIdEl.textContent = `Orden: ${data.order?.id?.slice(0, 8)}...`;
-  }
-
-  // Render status
-  const statusEl = qs('[data-status]');
-  if (statusEl) {
-    const statusLabel = data.order?.status === 'approved' ? 'Aprobada' : data.order?.status;
-    statusEl.textContent = statusLabel;
-    statusEl.className = `badge badge--${data.order?.status}`;
-  }
-
-  // Generate QR code
-  const qrCodeEl = document.getElementById('qr-code');
-  if (qrCodeEl && window.QRCodeStyling) {
-    const qrCode = new window.QRCodeStyling({
-      width: 200,
-      height: 200,
-      data: JSON.stringify({
-        type: 'lamubi_licor',
-        orderId: data.order?.id,
-        token: data.qrToken
-      }),
-      dotsOptions: {
-        color: '#bb1175',
-        type: 'rounded'
-      },
-      cornersSquareOptions: {
-        color: '#f43cb8',
-        type: 'extra-rounded'
-      },
-      cornersDotOptions: {
-        color: '#f361e5',
-        type: 'dot'
-      },
-      backgroundOptions: {
-        color: '#ffffff'
-      },
-      imageOptions: {
-        crossOrigin: 'anonymous',
-        margin: 5
-      }
-    });
-    qrCode.append(qrCodeEl);
+    // Generate QR code
+    const qrCodeEl = document.getElementById('qr-code');
+    if (qrCodeEl && window.QRCode) {
+      new window.QRCode(qrCodeEl, {
+        text: data.order?.id || '',
+        width: 180,
+        height: 180,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: window.QRCode.CorrectLevel.H
+      });
+    }
   }
 
   // Show content

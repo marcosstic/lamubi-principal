@@ -1,6 +1,6 @@
 import { createQRToken, getQRTokenByOrder, redeemQRToken, getQRWithRedemptions } from '../supabase/qr.js';
 import { getBuyerOrderWithItems } from '../supabase/orders.js';
-import { getProfile } from '../supabase/auth.js';
+import { getProfile, getAuthUser } from '../supabase/auth.js';
 
 /**
  * Genera un QR para una orden aprobada
@@ -8,9 +8,15 @@ import { getProfile } from '../supabase/auth.js';
  * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
 export async function generateQRForOrder(orderId) {
+  // Get current user
+  const authUser = await getAuthUser();
+  if (!authUser?.id) {
+    return { data: null, error: { message: 'Usuario no autenticado' } };
+  }
+
   // Get order details
   const { data: order, error: orderError } = await getBuyerOrderWithItems(
-    null, // Will be validated by RLS
+    authUser.id,
     orderId
   );
   

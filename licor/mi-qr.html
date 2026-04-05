@@ -14,8 +14,7 @@
   <link rel="stylesheet" href="/src/styles/animations.css" />
   <link rel="stylesheet" href="/src/styles/responsive.css" />
   <link rel="stylesheet" href="/src/styles/licor.css" />
-  <link rel="stylesheet" href="/src/styles/qr.css" />
-  <script src="https://unpkg.com/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
   <header class="header" role="banner">
@@ -61,40 +60,12 @@
         </div>
       </div>
 
-      <div class="qr-container" data-qr-container>
+      <div data-qr-container>
         <div class="qr-loading" data-qr-loading>
           <div class="spinner"></div>
           <p>Cargando tu QR...</p>
         </div>
-        <div class="qr-content" data-qr-content style="display:none">
-          <div class="qr-ticket">
-            <div class="qr-ticket__header">
-              <img class="qr-ticket__logo" src="/mubito.png" alt="Mubito" />
-              <h2 class="qr-ticket__title">LA MUBI</h2>
-              <p class="qr-ticket__subtitle">QR Ticket</p>
-            </div>
-
-            <div class="qr-ticket__section">
-              <h3 class="qr-ticket__section-title">Datos del Comprador</h3>
-              <div class="qr-ticket__info" data-buyer-info></div>
-            </div>
-
-            <div class="qr-ticket__section">
-              <h3 class="qr-ticket__section-title">Productos Comprados</h3>
-              <div class="qr-ticket__products" data-products></div>
-            </div>
-
-            <div class="qr-ticket__qr">
-              <div id="qr-code"></div>
-              <p class="qr-ticket__order-id" data-order-id></p>
-            </div>
-
-            <div class="qr-ticket__footer">
-              <p class="qr-ticket__note">Presenta este QR para retirar tu licor</p>
-              <span class="badge badge--approved" data-status></span>
-            </div>
-          </div>
-        </div>
+        <div data-qr-content style="display:none"></div>
         <div class="qr-error" data-qr-error style="display:none">
           <div class="card card--soft">
             <h3 class="card__title">No se pudo cargar el QR</h3>
