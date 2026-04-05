@@ -1,3 +1,13 @@
+console.log('admin-licor/app.js loaded');
+
+// Global error handler
+window.addEventListener('error', (e) => {
+  console.error('Global error:', e.error);
+  if (document.getElementById('debug-console')) {
+    document.getElementById('debug-console').textContent += `[ERROR] ${e.error?.message || e.message}\n`;
+  }
+});
+
 import { bindNavActive, requireAdminSession, toast } from '../shared/ui.js';
 import { getAuthUser, getProfile, getSession, signInWithPassword, signOut } from '../supabase/auth.js';
 import { createProduct, deleteProduct, deriveSkuAndSlugFromName, getProductImagePublicUrl, listProductsAdmin, updateProduct, uploadProductImage } from '../supabase/products.js';
@@ -665,12 +675,26 @@ async function initVerificaciones() {
 }
 
 async function initScanner() {
+  console.log('initScanner called');
   const readerEl = document.getElementById('qr-reader');
   const resultContainer = document.getElementById('result-container');
   const historyContainer = document.getElementById('scan-history');
   const toggleBtn = document.getElementById('btn-toggle-scan');
+  const debugConsole = document.getElementById('debug-console');
+  const clearDebugBtn = document.getElementById('clear-debug');
   
-  if (!readerEl || !toggleBtn) return;
+  if (!readerEl) {
+    console.error('qr-reader element not found');
+    debug('ERROR: qr-reader element not found');
+    return;
+  }
+  if (!toggleBtn) {
+    console.error('btn-toggle-scan element not found');
+    debug('ERROR: btn-toggle-scan element not found');
+    return;
+  }
+  
+  debug('initScanner started');
   if (!(await requireAdminSession(hasAdminSession))) return;
 
   const authUser = await getAuthUser();
@@ -679,6 +703,121 @@ async function initScanner() {
   let isScanning = false;
   let lastScanTime = 0;
   const SCAN_COOLDOWN = 3000; // 3 seconds cooldown
+  
+  // iOS-specific configuration
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isAndroid = /Android/.test(navigator.userAgent);
+  
+  debug(`Platform detected: iOS=${isIOS}, Android=${isAndroid}`);
+  
+  // Business rule: HTTPS verification for camera access
+  if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+    debug('WARNING: Not using HTTPS. Camera may not work on iOS.');
+    toast('⚠️ Para mejor compatibilidad, usa HTTPS', 'warning');
+  }
+
+  // Camera management
+  let currentCameraId = null;
+  let availableCameras = [];
+  
+  // Function to get available cameras
+  async function getAvailableCameras() {
+    try {
+      // Request permission first if needed
+      await navigator.mediaDevices.getUserMedia({ video: true });
+      
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      debug(`Found ${videoDevices.length} camera(s):`, videoDevices.map(d => ({ id: d.deviceId, label: d.label })));
+      return videoDevices;
+    } catch (err) {
+      debug('Error getting cameras:', err.message);
+      return [];
+    }
+  }
+  
+  // Function to switch camera
+  async function switchCamera() {
+    if (!html5QrCode || availableCameras.length <= 1) {
+      debug('Cannot switch camera: not enough cameras or scanner not ready');
+      return;
+    }
+    
+    // Find current camera index
+    const currentIndex = availableCameras.findIndex(cam => cam.deviceId === currentCameraId);
+    const nextIndex = (currentIndex + 1) % availableCameras.length;
+    const nextCamera = availableCameras[nextIndex];
+    
+    debug(`Switching from camera ${currentIndex} to ${nextIndex}:`, nextCamera.deviceId);
+    
+    try {
+      // Stop current scanner
+      await html5QrCode.pause();
+      
+      // Start with new camera
+      const cameraConfig = {
+        facingMode: nextCamera.deviceId ? { exact: nextCamera.deviceId } : 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      };
+      
+      const config = {
+        fps: isIOS ? 15 : 10,
+        qrbox: { width: 250, height: 250 },
+        ...(isIOS ? {} : { aspectRatio: 1.0 }),
+        disableFlip: false
+      };
+      
+      await html5QrCode.start(cameraConfig, config, onScanSuccess, (errorMessage) => {
+        if (!errorMessage.includes('No MultiFormat Readers')) {
+          debug('Scan error: ' + errorMessage);
+        }
+      });
+      
+      currentCameraId = nextCamera.deviceId;
+      debug('Camera switched successfully');
+      
+    } catch (err) {
+      debug('Error switching camera:', err.message);
+      toast('No se pudo cambiar de cámara: ' + err.message, 'warning');
+      
+      // Restart with original camera
+      try {
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          config,
+          onScanSuccess,
+          (errorMessage) => {
+            if (!errorMessage.includes('No MultiFormat Readers')) {
+              debug('Scan error: ' + errorMessage);
+            }
+          }
+        );
+      } catch (e) {
+        debug('Failed to restore original camera:', e.message);
+      }
+    }
+  }
+
+  // Debug function
+  function debug(message) {
+    if (debugConsole) {
+      const timestamp = new Date().toLocaleTimeString();
+      debugConsole.textContent += `[${timestamp}] ${message}\n`;
+      debugConsole.scrollTop = debugConsole.scrollHeight;
+    }
+    console.log(message);
+  }
+
+  // Clear debug
+  if (clearDebugBtn) {
+    clearDebugBtn.addEventListener('click', () => {
+      if (debugConsole) debugConsole.textContent = '';
+    });
+  }
+
+  debug('Scanner initialized');
+  debug('Auth user:', authUser?.email);
 
   function showResult(success, message, data = null) {
     if (!resultContainer) return;
@@ -723,11 +862,19 @@ async function initScanner() {
   }
 
   async function onScanSuccess(decodedText) {
-    if (!authUser?.id) return;
+    debug('QR scanned: ' + decodedText);
+    
+    if (!authUser?.id) {
+      debug('No auth user');
+      return;
+    }
     
     // Cooldown check
     const now = Date.now();
-    if (now - lastScanTime < SCAN_COOLDOWN) return;
+    if (now - lastScanTime < SCAN_COOLDOWN) {
+      debug('Cooldown active, skipping');
+      return;
+    }
     lastScanTime = now;
 
     // Pause scanning
@@ -736,23 +883,28 @@ async function initScanner() {
       isScanning = false;
       toggleBtn.textContent = '📷 Reanudar Scanner';
       toggleBtn.className = 'btn-scan start';
+      debug('Scanner paused');
     }
 
     try {
-      console.log('Scanned QR:', decodedText);
+      debug('Calling redeemQR...');
       const { data, error } = await redeemQR(decodedText, authUser.id, navigator.userAgent);
+      debug('Response: ' + JSON.stringify({ data, error }));
       
       if (data?.success) {
         showResult(true, '✅ QR Válido - Orden canjeada', data);
         addToHistory(decodedText, true, 'Canjeado');
         toast('QR canjeado exitosamente', 'success');
+        debug('QR redeemed successfully');
       } else {
-        showResult(false, '❌ ' + (data?.error || 'QR Inválido'));
-        addToHistory(decodedText, false, data?.error || 'Inválido');
-        toast(data?.error || 'QR inválido', 'warning');
+        const errorMsg = data?.error || 'QR Inválido';
+        showResult(false, '❌ ' + errorMsg);
+        addToHistory(decodedText, false, errorMsg);
+        toast(errorMsg, 'warning');
+        debug('QR invalid: ' + errorMsg);
       }
     } catch (err) {
-      console.error('Scan error:', err);
+      debug('Exception: ' + err.message);
       showResult(false, '❌ Error al procesar QR');
       addToHistory(decodedText, false, 'Error');
       toast('Error al procesar QR', 'error');
@@ -766,8 +918,9 @@ async function initScanner() {
           isScanning = true;
           toggleBtn.textContent = '⏸ Pausar Scanner';
           toggleBtn.className = 'btn-scan stop';
+          debug('Scanner resumed');
         } catch (e) {
-          console.error('Resume error:', e);
+          debug('Resume error: ' + e.message);
         }
       }
     }, 3000);
@@ -775,6 +928,7 @@ async function initScanner() {
 
   // Toggle scan button
   toggleBtn.addEventListener('click', async () => {
+    debug('Toggle button clicked. isScanning: ' + isScanning);
     if (isScanning) {
       // Stop scanning
       if (html5QrCode) {
@@ -784,39 +938,84 @@ async function initScanner() {
       toggleBtn.textContent = '📷 Iniciar Scanner';
       toggleBtn.className = 'btn-scan start';
       readerEl.classList.add('hidden');
+      debug('Scanner stopped');
     } else {
       // Start scanning
+      debug('Starting scanner...');
       readerEl.classList.remove('hidden');
       toggleBtn.textContent = '⏳ Iniciando...';
       toggleBtn.disabled = true;
+      
+      // iOS-specific: Check camera permissions before starting
+      if (isIOS) {
+        debug('iOS detected, checking camera permissions');
+        try {
+          const permission = await navigator.permissions.query({ name: 'camera' });
+          debug('Camera permission status:', permission.state);
+          if (permission.state === 'denied') {
+            throw new Error('Cámara denegada. Ve a Configuración > Safari > Cámara y activa los permisos.');
+          }
+        } catch (permError) {
+          debug('Permission check error (non-critical):', permError.message);
+          // Continue anyway - the start() will handle permissions
+        }
+      }
 
       try {
         if (!html5QrCode) {
+          debug('Creating Html5Qrcode instance');
           html5QrCode = new Html5Qrcode('qr-reader');
         }
 
+        // iOS-specific camera configuration
+        const cameraConfig = {
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        };
+        
+        // iOS-specific scanner configuration
         const config = {
-          fps: 10,
+          fps: isIOS ? 15 : 10, // Higher FPS for iOS
           qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
+          // iOS workaround: Don't set aspectRatio to avoid detection issues
+          ...(isIOS ? {} : { aspectRatio: 1.0 }),
           disableFlip: false
         };
 
+        debug('Starting camera with config: ' + JSON.stringify(config));
+        debug('Camera config: ' + JSON.stringify(cameraConfig));
+        
         await html5QrCode.start(
-          { facingMode: 'environment' },
+          cameraConfig,
           config,
           onScanSuccess,
           (errorMessage) => {
-            // Ignore parse errors
+            // Ignore parse errors but log for debugging
+            if (!errorMessage.includes('No MultiFormat Readers')) {
+              debug('Scan error: ' + errorMessage);
+            }
           }
         );
 
+        debug('Scanner started successfully');
         isScanning = true;
         toggleBtn.textContent = '⏸ Pausar Scanner';
         toggleBtn.className = 'btn-scan stop';
       } catch (err) {
-        console.error('Error starting scanner:', err);
-        toast('No se pudo iniciar la cámara: ' + err.message, 'warning');
+        debug('Error starting scanner: ' + err.message);
+        
+        // iOS-specific error handling
+        if (isIOS && err.message.includes('NotAllowedError')) {
+          toast('❌ Permiso de cámara denegado. Ve a Configuración > Safari > Cámara', 'error');
+        } else if (isIOS && err.message.includes('NotFoundError')) {
+          toast('❌ No se encontró cámara. Verifica que tu dispositivo tenga cámara', 'error');
+        } else if (err.message.includes('HTTPS')) {
+          toast('⚠️ La cámara requiere HTTPS en iOS', 'warning');
+        } else {
+          toast('No se pudo iniciar la cámara: ' + err.message, 'warning');
+        }
+        
         toggleBtn.textContent = '📷 Iniciar Scanner';
         toggleBtn.className = 'btn-scan start';
         readerEl.classList.add('hidden');
@@ -825,6 +1024,24 @@ async function initScanner() {
       }
     }
   });
+  
+  // Camera switch button
+  const switchCameraBtn = document.getElementById('btn-switch-camera');
+  if (switchCameraBtn) {
+    switchCameraBtn.addEventListener('click', async () => {
+      debug('Switch camera button clicked');
+      await switchCamera();
+    });
+  }
+  
+  // Initialize cameras after scanner starts
+  setTimeout(async () => {
+    availableCameras = await getAvailableCameras();
+    if (switchCameraBtn) {
+      switchCameraBtn.style.display = availableCameras.length > 1 ? 'inline-block' : 'none';
+    }
+    debug(`Camera switch button ${availableCameras.length > 1 ? 'shown' : 'hidden'}`);
+  }, 1000);
 }
 
 initHeader();
@@ -836,4 +1053,12 @@ initLicores();
 initMesasUpload();
 initVerificaciones();
 initCompradores();
-initScanner();
+try {
+  initScanner();
+  console.log('initScanner called at end of file');
+} catch (err) {
+  console.error('Error in initScanner:', err);
+  if (document.getElementById('debug-console')) {
+    document.getElementById('debug-console').textContent += `[FATAL] ${err.message}\n${err.stack}\n`;
+  }
+}

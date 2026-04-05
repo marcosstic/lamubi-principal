@@ -76,6 +76,12 @@
 
       <button class="btn-scan start" id="btn-toggle-scan">📷 Iniciar Scanner</button>
 
+      <div style="text-align: center; margin: 0.5rem 0;">
+        <button id="btn-switch-camera" class="btn-scan" style="display: none; width: auto; padding: 0.5rem 1rem; font-size: 0.9rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; cursor: pointer;">
+          🔄 Cambiar Cámara
+        </button>
+      </div>
+
       <div id="qr-reader" class="hidden"></div>
 
       <div id="result-container"></div>
@@ -83,6 +89,13 @@
       <div style="margin-top: 1.5rem;">
         <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Historial de Escaneos</h3>
         <div id="scan-history"></div>
+      </div>
+
+      <!-- Debug Panel -->
+      <div style="margin-top: 2rem; padding: 1rem; background: #f5f5f5; border-radius: 12px; border: 1px solid #ddd;">
+        <h3 style="font-size: 0.9rem; margin: 0 0 0.5rem; color: #333;">🔧 Debug Console</h3>
+        <div id="debug-console" style="font-family: monospace; font-size: 0.75rem; color: #000; background: #fff; padding: 0.5rem; border-radius: 8px; height: 150px; overflow-y: auto; white-space: pre-wrap; border: 1px solid #ccc;"></div>
+        <button id="clear-debug" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #007bff; border: none; border-radius: 4px; color: white; cursor: pointer;">Limpiar</button>
       </div>
     </div>
   </main>
