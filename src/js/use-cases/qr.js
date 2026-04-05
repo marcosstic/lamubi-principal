@@ -67,17 +67,59 @@ export async function generateQRForOrder(orderId) {
 }
 
 /**
- * Canjea un QR token
- * @param {string} token - Token del QR
+ * Canjea una orden por order_id (simplificado)
+ * @param {string} orderId - ID de la orden
  * @param {string} scannerId - ID del scanner/empleado
  * @param {string} deviceId - Identificador del dispositivo
  * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
-export async function redeemQR(token, scannerId, deviceId = null) {
-  const { data, error } = await redeemQRToken(token, scannerId, deviceId);
+export async function redeemQR(orderId, scannerId, deviceId = null) {
+  const { supabase } = await import('../supabase/client.js');
+  const { getBuyerOrderWithItems } = await import('../supabase/orders.js');
   
-  if (error) return { data: null, error };
-  return { data, error: null };
+  // Get order details
+  const { data: order, error: orderError } = await getBuyerOrderWithItems(scannerId, orderId);
+  
+  if (orderError || !order) {
+    return { data: null, error: { message: 'Orden no encontrada' } };
+  }
+  
+  // Check if order is approved
+  if (order.status !== 'approved') {
+    return { data: null, error: { message: `Orden ${order.status === 'used' ? 'ya canjeada' : 'no aprobada'}` } };
+  }
+  
+  // Update order status to 'used'
+  const { data: updatedOrder, error: updateError } = await supabase
+    .from('orders')
+    .update({ status: 'used', updated_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .select()
+    .single();
+  
+  if (updateError) {
+    return { data: null, error: updateError };
+  }
+  
+  // Get buyer profile
+  const { getProfile } = await import('../supabase/auth.js');
+  const { data: profile } = await getProfile(order.buyer_id);
+  
+  return {
+    data: {
+      success: true,
+      order: {
+        id: order.id,
+        status: 'used',
+        total_usd: order.total_usd
+      },
+      buyer: {
+        full_name: profile?.full_name || '—',
+        email: profile?.email || '—'
+      }
+    },
+    error: null
+  };
 }
 
 /**

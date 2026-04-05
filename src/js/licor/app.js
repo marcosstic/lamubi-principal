@@ -1069,7 +1069,7 @@ async function initMiQR() {
       </div>
     `;
 
-    // Generate QR code
+    // Generate QR code with order ID
     const qrCodeEl = document.getElementById('qr-code');
     let qrDataUrl = null;
     let qrImage = null;
@@ -1081,8 +1081,11 @@ async function initMiQR() {
       tempDiv.style.left = '-9999px';
       document.body.appendChild(tempDiv);
       
+      // Use order ID for QR code
+      const qrText = data.order?.id || '';
+      
       new window.QRCode(tempDiv, {
-        text: data.order?.id || '',
+        text: qrText,
         width: 180,
         height: 180,
         colorDark: '#000000',
