@@ -617,8 +617,10 @@ async function initConfirmacion() {
       <!-- Botones -->
       <div style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin-top:1.5rem">
         <a class="btn btn--primary" href="/licor/mi-cuenta.html">Volver a mi cuenta</a>
-        <button class="btn btn--secondary" type="button" id="download-qr-btn">📥 Descargar Ticket</button>
-        ${isApproved ? `<a class="btn btn--secondary" href="/licor/mesas.html">Ver mesas</a>` : ''}
+        ${isApproved ? `
+          <button class="btn btn--secondary" type="button" id="download-qr-btn">📥 Descargar Ticket</button>
+          <a class="btn btn--secondary" href="/licor/mesas.html">Ver mesas</a>
+        ` : ''}
       </div>
     </div>
   `;
@@ -1059,8 +1061,10 @@ async function initMiQR() {
 
         <div style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin-top:1.5rem">
           <a class="btn btn--primary" href="/licor/mi-cuenta.html">Volver a mi cuenta</a>
-          <button class="btn btn--secondary" type="button" id="download-qr-btn-miqr">📥 Descargar Ticket</button>
-          ${data.order?.status === 'approved' ? `<a class="btn btn--secondary" href="/licor/mesas.html">Ver mesas</a>` : ''}
+          ${data.order?.status === 'approved' ? `
+            <button class="btn btn--secondary" type="button" id="download-qr-btn-miqr">📥 Descargar Ticket</button>
+            <a class="btn btn--secondary" href="/licor/mesas.html">Ver mesas</a>
+          ` : ''}
         </div>
       </div>
     `;
