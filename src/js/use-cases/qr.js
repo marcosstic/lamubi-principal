@@ -49,9 +49,17 @@ export async function generateQRForOrder(orderId) {
         id: order.id,
         status: order.status,
         total_usd: order.total_usd,
-        items: order.order_items || []
+        created_at: order.created_at,
+        items: order.order_items || [],
+        payments: order.payments || []
       },
-      buyer: profile || { full_name: '', phone: '' },
+      buyer: {
+        full_name: profile?.full_name || authUser.user_metadata?.full_name || '—',
+        phone: profile?.phone || authUser.user_metadata?.phone || '—',
+        email: authUser.email || profile?.email || '—',
+        edad: profile?.edad || authUser.user_metadata?.edad || '—',
+        sexo: profile?.sexo || authUser.user_metadata?.sexo || '—'
+      },
       expiresAt: qrToken.expires_at
     },
     error: null

@@ -26,7 +26,11 @@ export async function createOrderWithItems(input){
 
 export async function getBuyerOrderWithItems(buyer_id, order_id){
   if(!buyer_id||!order_id)return{data:null,error:{message:'buyer_id y order_id requeridos'}};
-  return supabase.from(ORDERS_TABLE).select('id,buyer_id,status,subtotal_usd,total_usd,placed_at,created_at,order_items:order_items(id,qty,unit_price_usd,product:products(id,sku,name))').eq('id',order_id).eq('buyer_id',buyer_id).maybeSingle();
+  return supabase.from(ORDERS_TABLE).select(`
+    id,buyer_id,status,subtotal_usd,total_usd,placed_at,created_at,
+    order_items:order_items(id,qty,unit_price_usd,product:products(id,sku,name)),
+    payments:payments(id,method,amount_usd,amount_bs)
+  `).eq('id',order_id).eq('buyer_id',buyer_id).maybeSingle();
 }
 
 export async function updateOrderStatus(orderId, status, opts = {}) {

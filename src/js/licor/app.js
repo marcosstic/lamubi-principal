@@ -954,6 +954,20 @@ async function initMiQR() {
   const buyerName = data.buyer?.full_name || '—';
   const buyerPhone = data.buyer?.phone || '—';
   const buyerEmail = data.buyer?.email || '—';
+  const buyerEdad = data.buyer?.edad || '—';
+  const buyerSexo = data.buyer?.sexo || '—';
+  
+  // Get payment info
+  const payments = data.order?.payments || data.payments || [];
+  const payment = payments[0] || {};
+  const paymentMethod = payment.method === 'zelle' ? 'Zelle' : (payment.method || 'Pago Móvil');
+  const totalBs = payment.amount_bs ? `Bs ${Number(payment.amount_bs).toFixed(2)}` : '—';
+  
+  // Format purchase date
+  const purchaseDate = data.order?.created_at ? new Date(data.order.created_at).toLocaleString('es-VE', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }) : '—';
 
   // Render two-column layout
   if (content) {
@@ -977,6 +991,14 @@ async function initMiQR() {
                   <div style="font-size:.65rem;text-transform:uppercase;color:#666">Teléfono</div>
                   <div style="font-weight:600;color:#000;font-size:.8rem">${buyerPhone}</div>
                 </div>
+                <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Edad</div>
+                  <div style="font-weight:600;color:#000;font-size:.8rem">${buyerEdad}</div>
+                </div>
+                <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Sexo</div>
+                  <div style="font-weight:600;color:#000;font-size:.8rem;text-transform:capitalize">${buyerSexo}</div>
+                </div>
                 <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center;grid-column:1/-1">
                   <div style="font-size:.65rem;text-transform:uppercase;color:#666">Email</div>
                   <div style="font-weight:600;color:#000;font-size:.8rem">${buyerEmail}</div>
@@ -992,8 +1014,20 @@ async function initMiQR() {
                   <div style="font-weight:600;color:${statusColor};font-size:.85rem">${statusLabel}</div>
                 </div>
                 <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
-                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Total</div>
+                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Total USD</div>
                   <div style="font-weight:600;color:#000;font-size:.85rem">$${Number(data.order?.total_usd || 0).toFixed(2)}</div>
+                </div>
+                <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Total Bs</div>
+                  <div style="font-weight:600;color:#000;font-size:.85rem">${totalBs}</div>
+                </div>
+                <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Método Pago</div>
+                  <div style="font-weight:600;color:#000;font-size:.85rem">${paymentMethod}</div>
+                </div>
+                <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center;grid-column:1/-1">
+                  <div style="font-size:.65rem;text-transform:uppercase;color:#666">Fecha Compra</div>
+                  <div style="font-weight:600;color:#000;font-size:.85rem">${purchaseDate}</div>
                 </div>
               </div>
             </div>
@@ -1025,6 +1059,7 @@ async function initMiQR() {
 
         <div style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin-top:1.5rem">
           <a class="btn btn--primary" href="/licor/mi-cuenta.html">Volver a mi cuenta</a>
+          <button class="btn btn--secondary" type="button" id="download-qr-btn-miqr">📥 Descargar Ticket</button>
           ${data.order?.status === 'approved' ? `<a class="btn btn--secondary" href="/licor/mesas.html">Ver mesas</a>` : ''}
         </div>
       </div>
@@ -1032,14 +1067,246 @@ async function initMiQR() {
 
     // Generate QR code
     const qrCodeEl = document.getElementById('qr-code');
+    let qrDataUrl = null;
+    let qrImage = null;
+    
     if (qrCodeEl && window.QRCode) {
-      new window.QRCode(qrCodeEl, {
+      // Create a temporary container for QR generation
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      document.body.appendChild(tempDiv);
+      
+      new window.QRCode(tempDiv, {
         text: data.order?.id || '',
         width: 180,
         height: 180,
         colorDark: '#000000',
         colorLight: '#ffffff',
         correctLevel: window.QRCode.CorrectLevel.H
+      });
+
+      // Wait for QR to render
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Get QR canvas and convert to data URL
+      const qrCanvas = tempDiv.querySelector('canvas');
+      if (qrCanvas) {
+        qrDataUrl = qrCanvas.toDataURL('image/png');
+        qrImage = new Image();
+        qrImage.src = qrDataUrl;
+        await new Promise((resolve) => { qrImage.onload = resolve; });
+      }
+      
+      // Clean up temp div
+      document.body.removeChild(tempDiv);
+      
+      // Insert QR as img in the ticket
+      if (qrDataUrl) {
+        qrCodeEl.innerHTML = `<img src="${qrDataUrl}" style="width:180px;height:180px;display:block" />`;
+      }
+
+      // Download entire ticket by composing canvas manually
+      document.getElementById('download-qr-btn-miqr')?.addEventListener('click', async () => {
+        try {
+          const numProducts = (data.order?.items || []).length;
+          
+          // Calculate heights for both columns
+          const ticketColumnWidth = 280;
+          const productsColumnWidth = 200;
+          const gap = 10;
+          const width = ticketColumnWidth + gap + productsColumnWidth;
+          
+          // Calculate ticket column height
+          const ticketBaseHeight = 15 + 60 + 15 + 30 + 120 + 15 + 30 + 80 + 20 + 35 + 20 + 180 + 20;
+          const ticketHeight = Math.max(ticketBaseHeight, 550);
+          
+          // Calculate products column height
+          const productsHeight = Math.max(30 + numProducts * 28 + 15, ticketHeight);
+          const estimatedHeight = Math.max(ticketHeight, productsHeight);
+          
+          // Create canvas
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = width * 2;
+          canvas.height = estimatedHeight * 2;
+          ctx.scale(2, 2);
+          
+          // White background
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, estimatedHeight);
+          
+          // Helper function to draw text
+          function drawText(text, x, y, size, weight, color, align = 'center') {
+            ctx.fillStyle = color || '#000000';
+            ctx.font = `${weight} ${size}px Montserrat, sans-serif`;
+            ctx.textAlign = align;
+            ctx.fillText(text, x, y);
+          }
+          
+          // Helper to draw rounded rect
+          function drawRoundRect(x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, r);
+          }
+          
+          // ===== LEFT COLUMN: TICKET =====
+          const ticketX = 5;
+          const ticketW = ticketColumnWidth;
+          
+          // Ticket border
+          ctx.strokeStyle = '#bb1175';
+          ctx.lineWidth = 2;
+          drawRoundRect(ticketX, 5, ticketW, estimatedHeight - 10, 15);
+          ctx.stroke();
+          
+          // Logo
+          const logoImg = new Image();
+          logoImg.crossOrigin = 'anonymous';
+          await new Promise((resolve, reject) => {
+            logoImg.onload = resolve;
+            logoImg.onerror = reject;
+            logoImg.src = '/LaMubiMCBOLogo1.png';
+          });
+          const logoWidth = 70;
+          const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+          ctx.drawImage(logoImg, ticketX + (ticketW - logoWidth) / 2, 15, logoWidth, logoHeight);
+          
+          let yPos = 15 + logoHeight + 10;
+          
+          // Datos del Comprador
+          drawText('👤 Datos del Comprador', ticketX + ticketW / 2, yPos + 15, 11, '700', '#bb1175');
+          yPos += 28;
+          
+          const boxW = (ticketW - 30) / 2;
+          const boxH = 32;
+          const buyerInfo = [
+            { label: 'NOMBRE', value: buyerName },
+            { label: 'TELÉFONO', value: buyerPhone },
+            { label: 'EDAD', value: String(buyerEdad) },
+            { label: 'SEXO', value: String(buyerSexo) },
+            { label: 'EMAIL', value: buyerEmail }
+          ];
+          
+          buyerInfo.forEach((info, i) => {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const x = ticketX + 10 + col * (boxW + 5);
+            const y = yPos + row * (boxH + 4);
+            
+            ctx.fillStyle = '#f8f8f8';
+            drawRoundRect(x, y, boxW, boxH, 5);
+            ctx.fill();
+            
+            drawText(info.label, x + boxW / 2, y + 11, 6, '400', '#666666');
+            drawText(info.value, x + boxW / 2, y + 24, 8, '600', '#000000');
+          });
+          
+          yPos += Math.ceil(buyerInfo.length / 2) * (boxH + 4) + 12;
+          
+          // Detalles del Ticket
+          drawText('🎫 Detalles del Ticket', ticketX + ticketW / 2, yPos + 14, 11, '700', '#bb1175');
+          yPos += 26;
+          
+          const details = [
+            { label: 'ESTADO', value: statusLabel, color: statusColor },
+            { label: 'TOTAL USD', value: `$${Number(data.order?.total_usd || 0).toFixed(2)}` },
+            { label: 'TOTAL BS', value: totalBs },
+            { label: 'MÉTODO PAGO', value: paymentMethod },
+            { label: 'FECHA COMPRA', value: purchaseDate }
+          ];
+          
+          details.forEach((detail, i) => {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const x = ticketX + 10 + col * (boxW + 5);
+            const y = yPos + row * (boxH + 4);
+            
+            ctx.fillStyle = '#f8f8f8';
+            drawRoundRect(x, y, boxW, boxH, 5);
+            ctx.fill();
+            
+            drawText(detail.label, x + boxW / 2, y + 11, 6, '400', '#666666');
+            drawText(detail.value, x + boxW / 2, y + 24, 8, '600', detail.color || '#000000');
+          });
+          
+          yPos += Math.ceil(details.length / 2) * (boxH + 4) + 15;
+          
+          // Separator
+          ctx.strokeStyle = '#bb1175';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(ticketX + 15, yPos);
+          ctx.lineTo(ticketX + ticketW - 15, yPos);
+          ctx.stroke();
+          yPos += 18;
+          
+          // LICOR
+          drawText('LICOR', ticketX + ticketW / 2, yPos + 18, 16, '900', '#bb1175');
+          yPos += 30;
+          
+          drawText(`TICKET: ${data.order?.id?.slice(0, 8)}`, ticketX + ticketW / 2, yPos + 10, 9, '700', '#000000');
+          yPos += 18;
+          
+          // QR code
+          if (qrImage) {
+            const qrSize = 150;
+            const qrX = ticketX + (ticketW - qrSize) / 2;
+            ctx.drawImage(qrImage, qrX, yPos, qrSize, qrSize);
+            yPos += qrSize + 10;
+          }
+          
+          drawText(`Código: ${data.order?.id?.slice(0, 8)}`, ticketX + ticketW / 2, yPos + 10, 9, '600', '#000000');
+          
+          // ===== RIGHT COLUMN: PRODUCTS =====
+          const prodX = ticketX + ticketW + gap;
+          const prodW = productsColumnWidth;
+          
+          // Products border
+          ctx.strokeStyle = '#bb1175';
+          ctx.lineWidth = 2;
+          drawRoundRect(prodX, 5, prodW, estimatedHeight - 10, 15);
+          ctx.stroke();
+          
+          // Products header
+          drawText('🛒 Productos', prodX + prodW / 2, 25, 12, '700', '#bb1175');
+          
+          // Draw all products
+          (data.order?.items || []).forEach((item, i) => {
+            const y = 40 + i * 26;
+            
+            ctx.fillStyle = '#f8f8f8';
+            drawRoundRect(prodX + 8, y, prodW - 16, 22, 5);
+            ctx.fill();
+            
+            const maxNameLen = 18;
+            let name = item.product?.name || 'Producto';
+            if (name.length > maxNameLen) name = name.substring(0, maxNameLen - 2) + '..';
+            drawText(name, prodX + 16, y + 15, 8, '600', '#000000', 'left');
+            
+            ctx.fillStyle = '#bb1175';
+            drawRoundRect(prodX + prodW - 42, y + 3, 28, 16, 8);
+            ctx.fill();
+            drawText(`x${item.qty}`, prodX + prodW - 28, y + 15, 8, '700', '#ffffff');
+          });
+          
+          // Total products count at bottom
+          const totalY = 40 + numProducts * 26 + 10;
+          ctx.fillStyle = '#bb1175';
+          drawRoundRect(prodX + 8, totalY, prodW - 16, 24, 8);
+          ctx.fill();
+          drawText(`${numProducts} producto${numProducts > 1 ? 's' : ''}`, prodX + prodW / 2, totalY + 16, 9, '700', '#ffffff');
+          
+          // Download
+          const link = document.createElement('a');
+          link.download = `lamubi-ticket-${data.order?.id?.slice(0, 8)}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          toast('Ticket descargado exitosamente', 'success');
+        } catch (err) {
+          console.error('Download error:', err);
+          toast('No se pudo descargar el ticket', 'warning');
+        }
       });
     }
   }
