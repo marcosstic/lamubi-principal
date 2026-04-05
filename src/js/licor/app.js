@@ -493,7 +493,9 @@ async function initConfirmacion() {
 
   // Get buyer profile for name, phone, sexo, edad
   const { data: profile } = await getProfile(authUser.id);
-  const buyerName = profile?.full_name || authUser.user_metadata?.full_name || '—';
+  
+  // Try multiple sources for buyer data
+  const buyerName = profile?.full_name || authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || '—';
   const buyerPhone = profile?.phone || authUser.user_metadata?.phone || '—';
   const buyerSexo = profile?.sexo || authUser.user_metadata?.sexo || '—';
   const buyerEdad = profile?.edad || authUser.user_metadata?.edad || '—';
