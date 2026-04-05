@@ -5,6 +5,7 @@ import { getCurrentExchangeRate, updateExchangeRate } from '../supabase/settings
 import { listAllOrders, updateOrderStatus, getOrderWithDetails } from '../supabase/orders.js';
 import { listPendingPayments, updatePaymentStatus, getProofPublicUrl } from '../supabase/payments.js';
 import { getActiveMesasMap, publishMesasMap, getMesasHistory, getMesasImagePublicUrl } from '../supabase/mesas.js';
+import { redeemQR } from '../use-cases/qr.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -663,6 +664,140 @@ async function initVerificaciones() {
   await render();
 }
 
+async function initScanner() {
+  const readerEl = document.getElementById('qr-reader');
+  const resultEl = qs('[data-scan-result]');
+  const historyEl = qs('[data-scan-history]');
+  if (!readerEl) return;
+  if (!(await requireAdminSession(hasAdminSession))) return;
+
+  const authUser = await getAuthUser();
+  const scanHistory = [];
+  let html5QrCode = null;
+  let currentCamera = 'environment';
+
+  function showResult(success, message, data = null) {
+    if (!resultEl) return;
+    const color = success ? 'var(--success)' : 'var(--danger)';
+    const icon = success ? '✅' : '❌';
+    let details = '';
+    if (data?.buyer) {
+      details = `
+        <div style="margin-top:1rem;display:grid;gap:.5rem">
+          <div class="help"><strong>Comprador:</strong> ${data.buyer?.full_name || '—'}</div>
+          <div class="help"><strong>Email:</strong> ${data.buyer?.email || '—'}</div>
+          <div class="help"><strong>Orden:</strong> ${data.order?.id?.slice(0, 8) || '—'}...</div>
+          <div class="help"><strong>Total:</strong> $${Number(data.order?.total_usd || 0).toFixed(2)}</div>
+        </div>
+      `;
+    }
+    resultEl.innerHTML = `
+      <div class="card card--soft" style="border-left:4px solid ${color}">
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <span style="font-size:1.5rem">${icon}</span>
+          <div>
+            <div style="font-weight:900;color:${color}">${message}</div>
+            ${details}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function addToHistory(token, success, message) {
+    scanHistory.unshift({ token: token.slice(0, 8) + '...', success, message, time: new Date().toLocaleString('es-VE') });
+    if (scanHistory.length > 10) scanHistory.pop();
+    if (!historyEl) return;
+    historyEl.innerHTML = scanHistory.map((h) => `
+      <div class="card card--soft" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:600">${h.token}</div>
+          <div class="help">${h.time}</div>
+        </div>
+        <span class="badge badge--${h.success ? 'approved' : 'rejected'}">${h.success ? 'Válido' : 'Inválido'}</span>
+      </div>
+    `).join('');
+  }
+
+  async function onScanSuccess(decodedText) {
+    if (!authUser?.id) return;
+    
+    // Stop scanning temporarily
+    if (html5QrCode) {
+      await html5QrCode.pause();
+    }
+
+    try {
+      const { data, error } = await redeemQR(decodedText, authUser.id, navigator.userAgent);
+      
+      if (data?.success) {
+        showResult(true, 'QR Válido - Orden canjeada', data);
+        addToHistory(decodedText, true, 'Canjeado');
+        toast('QR canjeado exitosamente', 'success');
+      } else {
+        showResult(false, data?.error || 'QR Inválido');
+        addToHistory(decodedText, false, data?.error || 'Inválido');
+        toast(data?.error || 'QR inválido', 'warning');
+      }
+    } catch (err) {
+      showResult(false, 'Error al procesar QR');
+      addToHistory(decodedText, false, 'Error');
+      toast('Error al procesar QR', 'error');
+    }
+
+    // Resume scanning after 2 seconds
+    setTimeout(async () => {
+      if (html5QrCode) {
+        await html5QrCode.resume();
+      }
+    }, 2000);
+  }
+
+  // Initialize scanner
+  html5QrCode = new Html5Qrcode('qr-reader');
+  
+  const config = {
+    fps: 10,
+    qrbox: { width: 250, height: 250 },
+    aspectRatio: 1.0
+  };
+
+  try {
+    await html5QrCode.start(
+      { facingMode: currentCamera },
+      config,
+      onScanSuccess
+    );
+  } catch (err) {
+    console.error('Error starting scanner:', err);
+    toast('No se pudo iniciar la cámara', 'warning');
+  }
+
+  // Switch camera button
+  qs('[data-switch-camera]')?.addEventListener('click', async () => {
+    currentCamera = currentCamera === 'environment' ? 'user' : 'environment';
+    if (html5QrCode) {
+      await html5QrCode.stop();
+      await html5QrCode.start({ facingMode: currentCamera }, config, onScanSuccess);
+    }
+  });
+
+  // File upload fallback
+  qs('[data-scan-file]')?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !html5QrCode) return;
+    
+    try {
+      const decodedText = await html5QrCode.scanFile(file, true);
+      await onScanSuccess(decodedText);
+    } catch (err) {
+      showResult(false, 'No se encontró un QR en la imagen');
+      toast('No se encontró un QR válido', 'warning');
+    }
+    e.target.value = '';
+  });
+}
+
 initHeader();
 initGuards();
 initLogin();
@@ -672,3 +807,4 @@ initLicores();
 initMesasUpload();
 initVerificaciones();
 initCompradores();
+initScanner();

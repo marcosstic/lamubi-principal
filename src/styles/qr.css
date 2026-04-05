@@ -1,0 +1,220 @@
+/* QR Ticket Styles - LA MUBI Design Philosophy */
+
+.qr-container {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.qr-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.qr-loading .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.qr-loading p {
+  color: var(--white);
+  opacity: 0.7;
+  font-weight: 600;
+}
+
+/* QR Ticket Card */
+.qr-ticket {
+  background: linear-gradient(135deg, rgba(187, 17, 117, 0.15), rgba(244, 60, 184, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-lamubi);
+  position: relative;
+  overflow: hidden;
+}
+
+.qr-ticket::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+}
+
+/* Header */
+.qr-ticket__header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.qr-ticket__logo {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  margin: 0 auto 0.75rem;
+  filter: drop-shadow(0 0 15px var(--primary)) drop-shadow(0 0 30px var(--secondary));
+  animation: logoGlow 2s ease-in-out infinite alternate;
+}
+
+.qr-ticket__title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  margin: 0;
+  background: linear-gradient(45deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.qr-ticket__subtitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin: 0.25rem 0 0;
+}
+
+/* Sections */
+.qr-ticket__section {
+  margin-bottom: 1rem;
+}
+
+.qr-ticket__section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--secondary);
+  margin: 0 0 0.5rem;
+}
+
+/* Buyer Info */
+.qr-ticket__info {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.qr-ticket__info-item {
+  font-size: 0.9rem;
+  color: var(--white);
+  opacity: 0.9;
+}
+
+.qr-ticket__info-item strong {
+  color: var(--white);
+  font-weight: 600;
+}
+
+/* Products */
+.qr-ticket__products {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.qr-ticket__product {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.qr-ticket__product-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.qr-ticket__product-qty {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(243, 97, 229, 0.15);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+/* QR Code */
+.qr-ticket__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: #fff;
+  border-radius: var(--radius-md);
+  position: relative;
+}
+
+#qr-code {
+  filter: drop-shadow(0 0 10px rgba(187, 17, 117, 0.3));
+}
+
+.qr-ticket__order-id {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--black);
+  margin: 0.75rem 0 0;
+  opacity: 0.7;
+  word-break: break-all;
+  text-align: center;
+}
+
+/* Footer */
+.qr-ticket__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.qr-ticket__note {
+  font-size: 0.85rem;
+  color: var(--white);
+  opacity: 0.7;
+  text-align: center;
+  margin: 0;
+}
+
+/* Error State */
+.qr-error {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .qr-ticket {
+    padding: 1rem;
+  }
+  
+  .qr-ticket__logo {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .qr-ticket__title {
+    font-size: 1.25rem;
+  }
+}

@@ -6,6 +6,7 @@ import { createOrderWithItems, getBuyerOrderWithItems, listBuyerOrders } from '.
 import { getCurrentExchangeRate } from '../supabase/settings.js';
 import { createPayment, uploadPaymentProof } from '../supabase/payments.js';
 import { getActiveMesasMap, getMesasImagePublicUrl } from '../supabase/mesas.js';
+import { generateQRForOrder } from '../use-cases/qr.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -183,25 +184,32 @@ async function renderOrders() {
 
   root.innerHTML = orders.map((o) => {
     const badge = `badge--${o.status}`;
-    const label = o.status === 'awaiting_verification' ? 'Pendiente' : o.status === 'approved' ? 'Aprobada' : o.status === 'rejected' ? 'Rechazada' : 'Usada';
-    const cta = o.status === 'approved'
-      ? `<a class="btn btn--primary" href="/licor/mesas.html">Ver mesas</a><a class="btn btn--secondary" href="https://wa.me/584140659985?text=Hola%20LA%20MUBI,%20quiero%20reservar%20mesa.%20Mi%20orden%20de%20licor%20es%20${o.id}" target="_blank" rel="noopener noreferrer">Reservar por WhatsApp</a>`
-      : o.status === 'rejected'
-        ? `<a class="btn btn--primary" href="/licor/tienda.html">Crear nueva orden</a>`
-        : `<a class="btn btn--secondary" href="/licor/confirmacion.html?order=${encodeURIComponent(o.id)}">Ver QR</a>`;
-
-    const rejected = '';
+    const label = o.status === 'awaiting_verification' ? 'Pendiente' : o.status === 'approved' ? 'Aprobada' : o.status === 'rejected' ? 'Rechazada' : o.status === 'used' ? 'Usada' : o.status;
+    
+    let cta = '';
+    if (o.status === 'approved') {
+      cta = `
+        <a class="btn btn--primary" href="/licor/mi-qr.html?order=${encodeURIComponent(o.id)}">Ver QR</a>
+        <a class="btn btn--secondary" href="/licor/mesas.html">Ver mesas</a>
+        <a class="btn btn--secondary" href="https://wa.me/584140659985?text=Hola%20LA%20MUBI,%20quiero%20reservar%20mesa.%20Mi%20orden%20de%20licor%20es%20${o.id}" target="_blank" rel="noopener noreferrer">Reservar por WhatsApp</a>
+      `;
+    } else if (o.status === 'rejected') {
+      cta = `<a class="btn btn--primary" href="/licor/tienda.html">Crear nueva orden</a>`;
+    } else if (o.status === 'awaiting_verification') {
+      cta = `<a class="btn btn--secondary" href="/licor/confirmacion.html?order=${encodeURIComponent(o.id)}">Ver estado</a>`;
+    } else if (o.status === 'used') {
+      cta = `<span class="help">Orden completada</span>`;
+    }
 
     return `
       <article class="card card--tilt" style="display:grid;gap:.6rem">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
           <div>
-            <h3 class="card__title" style="margin:0">Orden ${o.id}</h3>
+            <h3 class="card__title" style="margin:0">Orden ${o.id.slice(0, 8)}...</h3>
             <p class="help" style="margin:.15rem 0 0">Total: ${fmtUsd(o.total_usd)}</p>
           </div>
           <span class="badge ${badge}">${label}</span>
         </div>
-        ${rejected}
         <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.6rem">${cta}</div>
       </article>
     `;
@@ -469,41 +477,403 @@ async function initConfirmacion() {
   if (!(await requireUserSession(hasUserSession))) return;
 
   const authUser = await getAuthUser();
-  const email = (authUser?.email || '').trim().toLowerCase();
-  if (!email) {
-    toast('Inicia sesión de nuevo', 'warning');
-    setTimeout(() => location.href = '/licor/login.html', 250);
-    return;
-  }
-
-  const id = new URLSearchParams(location.search).get('order');
   if (!authUser?.id) return;
-  const { data: order, error } = await getBuyerOrderWithItems(authUser.id, id);
-  if (error) {
-    toast(error.message || 'No se pudo cargar la orden', 'warning');
+
+  const orderId = new URLSearchParams(location.search).get('order');
+  if (!orderId) {
+    root.innerHTML = `<div class="card card--soft"><h3 class="card__title">Orden no especificada</h3><p class="card__text">Vuelve a mi cuenta.</p><div style="margin-top:1rem"><a class="btn btn--primary" href="/licor/mi-cuenta.html">Ir a mi cuenta</a></div></div>`;
     return;
   }
 
-  if (!order) {
+  const { data: order, error } = await getBuyerOrderWithItems(authUser.id, orderId);
+  if (error || !order) {
     root.innerHTML = `<div class="card card--soft"><h3 class="card__title">Orden no encontrada</h3><p class="card__text">Vuelve a mi cuenta.</p><div style="margin-top:1rem"><a class="btn btn--primary" href="/licor/mi-cuenta.html">Ir a mi cuenta</a></div></div>`;
     return;
   }
 
-  const label = order.status === 'awaiting_verification' ? 'Pendiente' : order.status === 'approved' ? 'Aprobada' : order.status === 'rejected' ? 'Rechazada' : order.status === 'cancelled' ? 'Cancelada' : order.status === 'placed' ? 'Procesando' : 'Borrador';
+  // Get buyer profile for name, phone, sexo, edad
+  const { data: profile } = await getProfile(authUser.id);
+  const buyerName = profile?.full_name || authUser.user_metadata?.full_name || '—';
+  const buyerPhone = profile?.phone || authUser.user_metadata?.phone || '—';
+  const buyerSexo = profile?.sexo || authUser.user_metadata?.sexo || '—';
+  const buyerEdad = profile?.edad || authUser.user_metadata?.edad || '—';
+  
+  // Format purchase date (Venezuela timezone)
+  const purchaseDate = order.created_at ? new Date(order.created_at).toLocaleString('es-VE', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }) : '—';
+
+  const label = order.status === 'awaiting_verification' ? 'Pendiente' : order.status === 'approved' ? 'Aprobada' : order.status === 'rejected' ? 'Rechazada' : order.status === 'used' ? 'Usada' : order.status;
+  const isApproved = order.status === 'approved';
+
+  // Get exchange rate for Bs calculation
+  const { data: rateData } = await getCurrentExchangeRate();
+  const exchangeRate = rateData || 600;
+  const totalBs = (Number(order.total_usd || 0) * exchangeRate).toFixed(2);
+
+  const statusColor = order.status === 'approved' ? '#11bb75' : order.status === 'rejected' ? '#f44336' : '#ff9800';
+  const statusLabel = order.status === 'awaiting_verification' ? 'pendiente' : order.status === 'approved' ? 'aprobada' : order.status === 'rejected' ? 'rechazada' : order.status === 'used' ? 'usada' : order.status;
+
   root.innerHTML = `
-    <div class="card card--soft" style="display:grid;gap:1rem;justify-items:center;text-align:center">
-      <h3 class="card__title" style="margin:0">Tu QR de licor</h3>
-      <span class="badge badge--${order.status}">${label}</span>
-      <div class="card" style="background:#fff;color:#000;max-width:520px;width:100%">
-        <div style="font-weight:900">LICOR:${order.id}</div>
-        <div style="opacity:.75;font-size:.9rem;margin-top:.4rem">(string simple para demo)</div>
+    <div style="max-width:700px;margin:0 auto">
+      <!-- Two columns layout -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <!-- LEFT COLUMN: TICKET -->
+        <div id="ticket-download" style="background:#fff;border-radius:20px;padding:1.5rem;border:2px solid #bb1175;overflow:hidden">
+          <!-- Logo centrado -->
+          <div style="text-align:center;margin-bottom:1rem">
+            <img src="/LaMubiMCBOLogo1.png" alt="LA MUBI" style="width:80px;height:auto;margin:0 auto;display:block" />
+          </div>
+
+          <!-- Datos del Comprador -->
+          <div style="margin-bottom:1rem">
+            <h3 style="margin:0 0 .75rem;font-size:1rem;font-weight:700;color:#bb1175;text-align:center">
+              👤 Datos del Comprador
+            </h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+              <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                <div style="font-size:.65rem;text-transform:uppercase;color:#666;letter-spacing:.05em">Nombre</div>
+                <div style="font-weight:600;color:#000;font-size:.8rem">${buyerName}</div>
+              </div>
+              <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                <div style="font-size:.65rem;text-transform:uppercase;color:#666;letter-spacing:.05em">Teléfono</div>
+                <div style="font-weight:600;color:#000;font-size:.8rem">${buyerPhone}</div>
+              </div>
+              <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                <div style="font-size:.65rem;text-transform:uppercase;color:#666;letter-spacing:.05em">Edad</div>
+                <div style="font-weight:600;color:#000;font-size:.8rem">${buyerEdad}</div>
+              </div>
+              <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                <div style="font-size:.65rem;text-transform:uppercase;color:#666;letter-spacing:.05em">Sexo</div>
+                <div style="font-weight:600;color:#000;font-size:.8rem;text-transform:capitalize">${buyerSexo}</div>
+              </div>
+              <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                <div style="font-size:.65rem;text-transform:uppercase;color:#666;letter-spacing:.05em">Email</div>
+                <div style="font-weight:600;color:#000;font-size:.8rem;word-break:break-all">${authUser.email || '—'}</div>
+              </div>
+              <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                <div style="font-size:.65rem;text-transform:uppercase;color:#666;letter-spacing:.05em">Orden</div>
+                <div style="font-weight:600;color:#000;font-size:.8rem">${order.id.slice(0, 8)}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Detalles del Ticket -->
+          <div style="margin-bottom:1rem">
+            <h3 style="margin:0 0 .75rem;font-size:1rem;font-weight:700;color:#bb1175;text-align:center">
+              🎫 Detalles del Ticket
+            </h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+              <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                <div style="font-size:.65rem;text-transform:uppercase;color:#666">Estado</div>
+                <div style="font-weight:600;color:${statusColor};font-size:.85rem;text-transform:capitalize">${statusLabel}</div>
+              </div>
+              <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                <div style="font-size:.65rem;text-transform:uppercase;color:#666">Total USD</div>
+                <div style="font-weight:600;color:#000;font-size:.85rem">$${Number(order.total_usd || 0).toFixed(2)}</div>
+              </div>
+              <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center">
+                <div style="font-size:.65rem;text-transform:uppercase;color:#666">Total Bs</div>
+                <div style="font-weight:600;color:#000;font-size:.85rem">Bs ${totalBs}</div>
+              </div>
+              <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;text-align:center;grid-column:1/-1">
+                <div style="font-size:.65rem;text-transform:uppercase;color:#666">Fecha de Compra</div>
+                <div style="font-weight:600;color:#000;font-size:.85rem">${purchaseDate}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- QR Code -->
+          <div style="text-align:center;padding-top:1rem;border-top:2px solid #bb1175">
+            <div style="font-size:1.5rem;font-weight:900;color:#bb1175;letter-spacing:.2em;margin-bottom:.5rem">LICOR</div>
+            <div style="font-size:.85rem;font-weight:700;color:#000;margin-bottom:.75rem">TICKET: ${order.id.slice(0, 8)}</div>
+            <div id="confirm-qr-code" style="display:inline-block;padding:.5rem;background:#fff"></div>
+            <div style="font-size:.85rem;font-weight:600;color:#000;margin-top:.5rem">Código: ${order.id.slice(0, 8)}</div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: PRODUCTS -->
+        <div style="background:#fff;border-radius:20px;padding:1.5rem;border:2px solid #bb1175;overflow:hidden">
+          <h3 style="margin:0 0 1rem;font-size:1rem;font-weight:700;color:#bb1175;text-align:center">
+            🛒 Productos Comprados
+          </h3>
+          <div style="display:grid;gap:.4rem">
+            ${(order.order_items || []).map((item) => `
+              <div style="background:#f8f8f8;border-radius:8px;padding:.5rem;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-weight:600;color:#000;font-size:.85rem">${item.product?.name || 'Producto'}</span>
+                <span style="background:#bb1175;color:#fff;padding:.15rem .5rem;border-radius:999px;font-size:.75rem;font-weight:700">x${item.qty}</span>
+              </div>
+            `).join('') || '<div style="text-align:center;color:#666">Sin productos</div>'}
+          </div>
+          <div style="margin-top:1rem;text-align:center">
+            <span style="background:#bb1175;color:#fff;padding:.5rem 1rem;border-radius:999px;font-size:.85rem;font-weight:700">${(order.order_items || []).length} producto${(order.order_items || []).length !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
       </div>
-      <p class="help" style="margin:0">Este QR no es válido hasta que el admin apruebe el pago.</p>
-      <div style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center">
+
+      <!-- Botones -->
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin-top:1.5rem">
         <a class="btn btn--primary" href="/licor/mi-cuenta.html">Volver a mi cuenta</a>
+        <button class="btn btn--secondary" type="button" id="download-qr-btn">📥 Descargar Ticket</button>
+        ${isApproved ? `<a class="btn btn--secondary" href="/licor/mesas.html">Ver mesas</a>` : ''}
       </div>
     </div>
   `;
+
+  // Generate QR code using qrcodejs library
+  const qrCodeEl = document.getElementById('confirm-qr-code');
+  let qrDataUrl = null;
+  let qrImage = null;
+  
+  if (qrCodeEl && window.QRCode) {
+    // Create a temporary container for QR generation
+    const tempDiv = document.createElement('div');
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    document.body.appendChild(tempDiv);
+    
+    new window.QRCode(tempDiv, {
+      text: order.id,
+      width: 200,
+      height: 200,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: window.QRCode.CorrectLevel.H
+    });
+
+    // Wait for QR to render
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Get QR canvas and convert to data URL
+    const qrCanvas = tempDiv.querySelector('canvas');
+    if (qrCanvas) {
+      qrDataUrl = qrCanvas.toDataURL('image/png');
+      // Create image object for later use
+      qrImage = new Image();
+      qrImage.src = qrDataUrl;
+      await new Promise((resolve) => { qrImage.onload = resolve; });
+    }
+    
+    // Clean up temp div
+    document.body.removeChild(tempDiv);
+    
+    // Insert QR as img in the ticket
+    if (qrDataUrl) {
+      qrCodeEl.innerHTML = `<img id="qr-ticket-img" src="${qrDataUrl}" style="width:200px;height:200px;display:block" />`;
+    } else {
+      qrCodeEl.innerHTML = '<p style="color:red">Error al generar QR</p>';
+    }
+
+    // Download entire ticket by composing canvas manually
+    document.getElementById('download-qr-btn')?.addEventListener('click', async () => {
+      try {
+        const numProducts = (order.order_items || []).length;
+        
+        // Calculate heights for both columns
+        const ticketColumnWidth = 280;
+        const productsColumnWidth = 200;
+        const gap = 10;
+        const width = ticketColumnWidth + gap + productsColumnWidth;
+        
+        // Calculate ticket column height
+        const ticketBaseHeight = 15 + 60 + 15 + 30 + 120 + 15 + 30 + 80 + 20 + 35 + 20 + 180 + 20;
+        const ticketHeight = Math.max(ticketBaseHeight, 550);
+        
+        // Calculate products column height (24px per product + header)
+        const productsHeight = Math.max(30 + numProducts * 28 + 15, ticketHeight);
+        const estimatedHeight = Math.max(ticketHeight, productsHeight);
+        
+        // Create canvas
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = width * 2;
+        canvas.height = estimatedHeight * 2;
+        ctx.scale(2, 2);
+        
+        // White background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, estimatedHeight);
+        
+        // Helper function to draw text
+        function drawText(text, x, y, size, weight, color, align = 'center') {
+          ctx.fillStyle = color || '#000000';
+          ctx.font = `${weight} ${size}px Montserrat, sans-serif`;
+          ctx.textAlign = align;
+          ctx.fillText(text, x, y);
+        }
+        
+        // Helper to draw rounded rect
+        function drawRoundRect(x, y, w, h, r) {
+          ctx.beginPath();
+          ctx.roundRect(x, y, w, h, r);
+        }
+        
+        // ===== LEFT COLUMN: TICKET =====
+        const ticketX = 5;
+        const ticketW = ticketColumnWidth;
+        
+        // Ticket border
+        ctx.strokeStyle = '#bb1175';
+        ctx.lineWidth = 2;
+        drawRoundRect(ticketX, 5, ticketW, estimatedHeight - 10, 15);
+        ctx.stroke();
+        
+        // Logo
+        const logoImg = new Image();
+        logoImg.crossOrigin = 'anonymous';
+        await new Promise((resolve, reject) => {
+          logoImg.onload = resolve;
+          logoImg.onerror = reject;
+          logoImg.src = '/LaMubiMCBOLogo1.png';
+        });
+        const logoWidth = 70;
+        const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+        ctx.drawImage(logoImg, ticketX + (ticketW - logoWidth) / 2, 15, logoWidth, logoHeight);
+        
+        let yPos = 15 + logoHeight + 10;
+        
+        // Datos del Comprador
+        drawText('👤 Datos del Comprador', ticketX + ticketW / 2, yPos + 15, 11, '700', '#bb1175');
+        yPos += 28;
+        
+        const boxW = (ticketW - 30) / 2;
+        const boxH = 32;
+        const buyerInfo = [
+          { label: 'NOMBRE', value: buyerName },
+          { label: 'TELÉFONO', value: buyerPhone },
+          { label: 'EDAD', value: String(buyerEdad) },
+          { label: 'SEXO', value: buyerSexo },
+          { label: 'EMAIL', value: authUser.email || '—' },
+          { label: 'ORDEN', value: order.id.slice(0, 8) }
+        ];
+        
+        buyerInfo.forEach((info, i) => {
+          const col = i % 2;
+          const row = Math.floor(i / 2);
+          const x = ticketX + 10 + col * (boxW + 5);
+          const y = yPos + row * (boxH + 4);
+          
+          ctx.fillStyle = '#f8f8f8';
+          drawRoundRect(x, y, boxW, boxH, 5);
+          ctx.fill();
+          
+          drawText(info.label, x + boxW / 2, y + 11, 6, '400', '#666666');
+          drawText(info.value, x + boxW / 2, y + 24, 8, '600', '#000000');
+        });
+        
+        yPos += Math.ceil(buyerInfo.length / 2) * (boxH + 4) + 12;
+        
+        // Detalles del Ticket
+        drawText('🎫 Detalles del Ticket', ticketX + ticketW / 2, yPos + 14, 11, '700', '#bb1175');
+        yPos += 26;
+        
+        const details = [
+          { label: 'ESTADO', value: statusLabel, color: statusColor },
+          { label: 'TOTAL USD', value: `$${Number(order.total_usd || 0).toFixed(2)}` },
+          { label: 'TOTAL BS', value: `Bs ${totalBs}` },
+          { label: 'FECHA', value: purchaseDate }
+        ];
+        
+        details.forEach((detail, i) => {
+          const col = i % 2;
+          const row = Math.floor(i / 2);
+          const x = ticketX + 10 + col * (boxW + 5);
+          const y = yPos + row * (boxH + 4);
+          
+          ctx.fillStyle = '#f8f8f8';
+          drawRoundRect(x, y, boxW, boxH, 5);
+          ctx.fill();
+          
+          drawText(detail.label, x + boxW / 2, y + 11, 6, '400', '#666666');
+          drawText(detail.value, x + boxW / 2, y + 24, 8, '600', detail.color || '#000000');
+        });
+        
+        yPos += Math.ceil(details.length / 2) * (boxH + 4) + 15;
+        
+        // Separator
+        ctx.strokeStyle = '#bb1175';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(ticketX + 15, yPos);
+        ctx.lineTo(ticketX + ticketW - 15, yPos);
+        ctx.stroke();
+        yPos += 18;
+        
+        // LICOR
+        drawText('LICOR', ticketX + ticketW / 2, yPos + 18, 16, '900', '#bb1175');
+        yPos += 30;
+        
+        drawText(`TICKET: ${order.id.slice(0, 8)}`, ticketX + ticketW / 2, yPos + 10, 9, '700', '#000000');
+        yPos += 18;
+        
+        // QR code
+        if (qrImage) {
+          const qrSize = 150;
+          const qrX = ticketX + (ticketW - qrSize) / 2;
+          ctx.drawImage(qrImage, qrX, yPos, qrSize, qrSize);
+          yPos += qrSize + 10;
+        }
+        
+        drawText(`Código: ${order.id.slice(0, 8)}`, ticketX + ticketW / 2, yPos + 10, 9, '600', '#000000');
+        
+        // ===== RIGHT COLUMN: PRODUCTS =====
+        const prodX = ticketX + ticketW + gap;
+        const prodW = productsColumnWidth;
+        
+        // Products border
+        ctx.strokeStyle = '#bb1175';
+        ctx.lineWidth = 2;
+        drawRoundRect(prodX, 5, prodW, estimatedHeight - 10, 15);
+        ctx.stroke();
+        
+        // Products header
+        drawText('🛒 Productos', prodX + prodW / 2, 25, 12, '700', '#bb1175');
+        
+        // Draw all products
+        (order.order_items || []).forEach((item, i) => {
+          const y = 40 + i * 26;
+          
+          ctx.fillStyle = '#f8f8f8';
+          drawRoundRect(prodX + 8, y, prodW - 16, 22, 5);
+          ctx.fill();
+          
+          // Product name (left aligned, truncated if needed)
+          const maxNameLen = 18;
+          let name = item.product?.name || 'Producto';
+          if (name.length > maxNameLen) name = name.substring(0, maxNameLen - 2) + '..';
+          drawText(name, prodX + 16, y + 15, 8, '600', '#000000', 'left');
+          
+          // Quantity badge
+          ctx.fillStyle = '#bb1175';
+          drawRoundRect(prodX + prodW - 42, y + 3, 28, 16, 8);
+          ctx.fill();
+          drawText(`x${item.qty}`, prodX + prodW - 28, y + 15, 8, '700', '#ffffff');
+        });
+        
+        // Total products count at bottom
+        const totalY = 40 + numProducts * 26 + 10;
+        ctx.fillStyle = '#bb1175';
+        drawRoundRect(prodX + 8, totalY, prodW - 16, 24, 8);
+        ctx.fill();
+        drawText(`${numProducts} producto${numProducts > 1 ? 's' : ''}`, prodX + prodW / 2, totalY + 16, 9, '700', '#ffffff');
+        
+        // Download
+        const link = document.createElement('a');
+        link.download = `lamubi-ticket-${order.id.slice(0, 8)}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        toast('Ticket descargado exitosamente', 'success');
+      } catch (err) {
+        console.error('Download error:', err);
+        toast('No se pudo descargar el ticket', 'warning');
+      }
+    });
+  } else {
+    if (qrCodeEl) {
+      qrCodeEl.innerHTML = '<p style="color:red">Librería QR no cargada</p>';
+    }
+  }
 }
 
 async function initMesas() {
@@ -546,6 +916,111 @@ function initGuards() {
   });
 }
 
+async function initMiQR() {
+  const container = qs('[data-qr-container]');
+  const loading = qs('[data-qr-loading]');
+  const content = qs('[data-qr-content]');
+  const error = qs('[data-qr-error]');
+  const errorMessage = qs('[data-error-message]');
+  
+  if (!container) return;
+  
+  // Get order ID from URL
+  const orderId = new URLSearchParams(location.search).get('order');
+  if (!orderId) {
+    if (error) {
+      error.style.display = 'block';
+      if (errorMessage) errorMessage.textContent = 'No se especificó una orden.';
+    }
+    if (loading) loading.style.display = 'none';
+    return;
+  }
+
+  const { data, error: qrError } = await generateQRForOrder(orderId);
+  
+  if (qrError || !data) {
+    if (loading) loading.style.display = 'none';
+    if (error) {
+      error.style.display = 'block';
+      if (errorMessage) errorMessage.textContent = qrError?.message || 'No se pudo generar el QR.';
+    }
+    return;
+  }
+
+  // Render buyer info
+  const buyerInfoEl = qs('[data-buyer-info]');
+  if (buyerInfoEl) {
+    buyerInfoEl.innerHTML = `
+      <div class="qr-ticket__info-item"><strong>Nombre:</strong> ${data.buyer?.full_name || '—'}</div>
+      <div class="qr-ticket__info-item"><strong>Email:</strong> ${data.buyer?.email || '—'}</div>
+      <div class="qr-ticket__info-item"><strong>Teléfono:</strong> ${data.buyer?.phone || '—'}</div>
+    `;
+  }
+
+  // Render products
+  const productsEl = qs('[data-products]');
+  if (productsEl) {
+    productsEl.innerHTML = (data.order?.items || []).map((item) => `
+      <div class="qr-ticket__product">
+        <span class="qr-ticket__product-name">${item.product?.name || 'Producto'}</span>
+        <span class="qr-ticket__product-qty">x${item.qty}</span>
+      </div>
+    `).join('') || '<div class="qr-ticket__info-item">Sin productos</div>';
+  }
+
+  // Render order ID
+  const orderIdEl = qs('[data-order-id]');
+  if (orderIdEl) {
+    orderIdEl.textContent = `Orden: ${data.order?.id?.slice(0, 8)}...`;
+  }
+
+  // Render status
+  const statusEl = qs('[data-status]');
+  if (statusEl) {
+    const statusLabel = data.order?.status === 'approved' ? 'Aprobada' : data.order?.status;
+    statusEl.textContent = statusLabel;
+    statusEl.className = `badge badge--${data.order?.status}`;
+  }
+
+  // Generate QR code
+  const qrCodeEl = document.getElementById('qr-code');
+  if (qrCodeEl && window.QRCodeStyling) {
+    const qrCode = new window.QRCodeStyling({
+      width: 200,
+      height: 200,
+      data: JSON.stringify({
+        type: 'lamubi_licor',
+        orderId: data.order?.id,
+        token: data.qrToken
+      }),
+      dotsOptions: {
+        color: '#bb1175',
+        type: 'rounded'
+      },
+      cornersSquareOptions: {
+        color: '#f43cb8',
+        type: 'extra-rounded'
+      },
+      cornersDotOptions: {
+        color: '#f361e5',
+        type: 'dot'
+      },
+      backgroundOptions: {
+        color: '#ffffff'
+      },
+      imageOptions: {
+        crossOrigin: 'anonymous',
+        margin: 5
+      }
+    });
+    qrCode.append(qrCodeEl);
+  }
+
+  // Show content
+  if (loading) loading.style.display = 'none';
+  if (content) content.style.display = 'block';
+}
+
 initHeader();
 initGuards();
 initLogin();
@@ -557,3 +1032,4 @@ initCheckout();
 initVerificacion();
 initConfirmacion();
 initMesas();
+initMiQR();
