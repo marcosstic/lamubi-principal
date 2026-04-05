@@ -70,3 +70,18 @@ export async function getOrderWithDetails(orderId) {
     .eq('id', orderId)
     .maybeSingle();
 }
+
+/**
+ * Get order for scanner validation (no buyer_id restriction)
+ */
+export async function getOrderForScanner(orderId) {
+  return supabase
+    .from(ORDERS_TABLE)
+    .select(`
+      id, buyer_id, status, subtotal_usd, total_usd, placed_at, created_at,
+      order_items:order_items(id, qty, unit_price_usd, product:products(id, sku, name)),
+      payments:payments(id, method, amount_usd, amount_bs)
+    `)
+    .eq('id', orderId)
+    .maybeSingle();
+}

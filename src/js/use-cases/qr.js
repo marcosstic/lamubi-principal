@@ -67,7 +67,7 @@ export async function generateQRForOrder(orderId) {
 }
 
 /**
- * Canjea una orden por order_id (simplificado)
+ * Canjea una orden por order_id (simplificado para scanner)
  * @param {string} orderId - ID de la orden
  * @param {string} scannerId - ID del scanner/empleado
  * @param {string} deviceId - Identificador del dispositivo
@@ -75,10 +75,10 @@ export async function generateQRForOrder(orderId) {
  */
 export async function redeemQR(orderId, scannerId, deviceId = null) {
   const { supabase } = await import('../supabase/client.js');
-  const { getBuyerOrderWithItems } = await import('../supabase/orders.js');
+  const { getOrderForScanner } = await import('../supabase/orders.js');
   
-  // Get order details
-  const { data: order, error: orderError } = await getBuyerOrderWithItems(scannerId, orderId);
+  // Get order details (no buyer_id restriction)
+  const { data: order, error: orderError } = await getOrderForScanner(orderId);
   
   if (orderError || !order) {
     return { data: null, error: { message: 'Orden no encontrada' } };
@@ -86,7 +86,7 @@ export async function redeemQR(orderId, scannerId, deviceId = null) {
   
   // Check if order is approved
   if (order.status !== 'approved') {
-    return { data: null, error: { message: `Orden ${order.status === 'used' ? 'ya canjeada' : 'no aprobada'}` } };
+    return { data: null, error: { message: order.status === 'used' ? 'Orden ya canjeada' : 'Orden no aprobada' } };
   }
   
   // Update order status to 'used'
