@@ -24,9 +24,9 @@ export async function generateQRForOrder(orderId) {
     return { data: null, error: orderError || { message: 'Orden no encontrada' } };
   }
 
-  // Check if order is approved
-  if (order.status !== 'approved') {
-    return { data: null, error: { message: 'La orden no está aprobada' } };
+  // Check if order is approved or awaiting verification
+  if (order.status !== 'approved' && order.status !== 'awaiting_verification') {
+    return { data: null, error: { message: 'La orden no está aprobada ni pendiente de verificación' } };
   }
 
   // Get or create QR token
