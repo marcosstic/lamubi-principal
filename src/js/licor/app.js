@@ -508,6 +508,7 @@ async function initConfirmacion() {
 
   const label = order.status === 'awaiting_verification' ? 'Pendiente' : order.status === 'approved' ? 'Aprobada' : order.status === 'rejected' ? 'Rechazada' : order.status === 'used' ? 'Usada' : order.status;
   const isApproved = order.status === 'approved';
+  const canShowQr = order.status === 'approved' || order.status === 'awaiting_verification';
 
   // Get exchange rate for Bs calculation
   const { data: rateData } = await getCurrentExchangeRate();
@@ -586,6 +587,7 @@ async function initConfirmacion() {
             </div>
           </div>
 
+          ${canShowQr ? `
           <!-- QR Code -->
           <div style="text-align:center;padding-top:1rem;border-top:2px solid #bb1175">
             <div style="font-size:1.5rem;font-weight:900;color:#bb1175;letter-spacing:.2em;margin-bottom:.5rem">LICOR</div>
@@ -593,6 +595,15 @@ async function initConfirmacion() {
             <div id="confirm-qr-code" style="display:inline-block;padding:.5rem;background:#fff"></div>
             <div style="font-size:.85rem;font-weight:600;color:#000;margin-top:.5rem">Código: ${order.id.slice(0, 8)}</div>
           </div>
+        ` : `
+          <!-- QR Code -->
+          <div style="text-align:center;padding-top:1rem;border-top:2px solid #bb1175">
+            <div style="font-size:1.5rem;font-weight:900;color:#bb1175;letter-spacing:.2em;margin-bottom:.5rem">LICOR</div>
+            <div style="font-size:.95rem;font-weight:700;color:${statusColor};margin-top:.75rem;text-transform:capitalize">
+              Ticket ${statusLabel}. Este QR no es válido para canjear.
+            </div>
+          </div>
+        `}
         </div>
 
         <!-- RIGHT COLUMN: PRODUCTS -->
@@ -627,6 +638,7 @@ async function initConfirmacion() {
 
   // Generate QR code using qrcodejs library
   const qrCodeEl = document.getElementById('confirm-qr-code');
+  if (!canShowQr) return;
   let qrDataUrl = null;
   let qrImage = null;
   let qrText = order.id;
