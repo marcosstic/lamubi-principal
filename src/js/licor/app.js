@@ -629,6 +629,18 @@ async function initConfirmacion() {
   const qrCodeEl = document.getElementById('confirm-qr-code');
   let qrDataUrl = null;
   let qrImage = null;
+  let qrText = order.id;
+  
+  try {
+    const { data: qrData } = await generateQRForOrder(orderId);
+    if (qrData?.qrToken) {
+      const verifyUrl = new URL('/admin-licor/verify.html', window.location.origin);
+      verifyUrl.searchParams.set('token', qrData.qrToken);
+      qrText = verifyUrl.toString();
+    }
+  } catch (_) {
+    // Fallback: keep order.id
+  }
   
   if (qrCodeEl && window.QRCode) {
     // Create a temporary container for QR generation
@@ -638,7 +650,7 @@ async function initConfirmacion() {
     document.body.appendChild(tempDiv);
     
     new window.QRCode(tempDiv, {
-      text: order.id,
+      text: qrText,
       width: 200,
       height: 200,
       colorDark: '#000000',
@@ -1081,8 +1093,10 @@ async function initMiQR() {
       tempDiv.style.left = '-9999px';
       document.body.appendChild(tempDiv);
       
-      // Use order ID for QR code
-      const qrText = data.order?.id || '';
+      // Use verify URL (token) for QR code
+      const verifyUrl = new URL('/admin-licor/verify.html', window.location.origin);
+      verifyUrl.searchParams.set('token', data.qrToken);
+      const qrText = verifyUrl.toString();
       
       new window.QRCode(tempDiv, {
         text: qrText,

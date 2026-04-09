@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LA MUBI — Verificar QR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles/variables.css" />
+  <link rel="stylesheet" href="/src/styles/base.css" />
+  <link rel="stylesheet" href="/src/styles/layout.css" />
+  <link rel="stylesheet" href="/src/styles/components.css" />
+  <link rel="stylesheet" href="/src/styles/animations.css" />
+  <link rel="stylesheet" href="/src/styles/responsive.css" />
+  <link rel="stylesheet" href="/src/styles/licor.css" />
+</head>
+<body>
+  <header class="header" role="banner">
+    <div class="container header__inner">
+      <a class="brand" href="/" aria-label="LA MUBI"><img class="brand__logo" src="/LaMubiMCBOLogo1.png" alt="LA MUBI" /></a>
+      <nav class="nav" aria-label="Admin Licor">
+        <a class="nav__link" data-nav-link href="/admin-licor/index.html">Dashboard</a>
+        <a class="nav__link" data-nav-link href="/admin-licor/scanner.html">Scanner</a>
+      </nav>
+      <div class="header__ctas">
+        <span class="badge"><span style="opacity:.75">@</span> <span data-admin-email></span></span>
+        <a class="btn btn--secondary" data-admin-logout href="#">Salir</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page" id="main" data-require-admin>
+    <div class="container" style="max-width:720px">
+      <div class="card card--soft" style="margin-top:1.25rem">
+        <h1 class="card__title" style="margin:0">Verificar QR</h1>
+        <p class="card__text" style="margin:.25rem 0 0">Escanea el QR con la cámara nativa y abre este enlace.</p>
+      </div>
+
+      <div class="card card--soft" style="margin-top:1rem;display:grid;gap:1rem">
+        <div data-verify-status class="help">Cargando…</div>
+        <div data-verify-details></div>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+          <button class="btn btn--primary" type="button" data-verify-redeem disabled>Validar / Canjear</button>
+          <a class="btn btn--secondary" href="/admin-licor/index.html">Volver</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast-root" data-toast-root></div>
+  <script src="/src/js/main.js" type="module"></script>
+  <script src="/src/js/admin-licor/app.js" type="module"></script>
+</body>
+</html>

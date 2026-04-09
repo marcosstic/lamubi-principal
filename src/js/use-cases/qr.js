@@ -67,59 +67,31 @@ export async function generateQRForOrder(orderId) {
 }
 
 /**
- * Canjea una orden por order_id (simplificado para scanner)
- * @param {string} orderId - ID de la orden
+ * Canjea un QR token (o una URL que contiene ?token=...).
+ * @param {string} scannedText - Token UUID o URL con token
  * @param {string} scannerId - ID del scanner/empleado
  * @param {string} deviceId - Identificador del dispositivo
  * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
-export async function redeemQR(orderId, scannerId, deviceId = null) {
-  const { supabase } = await import('../supabase/client.js');
-  const { getOrderForScanner } = await import('../supabase/orders.js');
-  
-  // Get order details (no buyer_id restriction)
-  const { data: order, error: orderError } = await getOrderForScanner(orderId);
-  
-  if (orderError || !order) {
-    return { data: null, error: { message: 'Orden no encontrada' } };
+export async function redeemQR(scannedText, scannerId, deviceId = null) {
+  if (!scannedText) return { data: null, error: { message: 'QR vacío' } };
+
+  let token = null;
+
+  // If scannedText is a URL, extract token
+  try {
+    const url = new URL(scannedText);
+    token = url.searchParams.get('token');
+  } catch (_) {
+    // Not a URL
   }
-  
-  // Check if order is approved
-  if (order.status !== 'approved') {
-    return { data: null, error: { message: order.status === 'used' ? 'Orden ya canjeada' : 'Orden no aprobada' } };
-  }
-  
-  // Update order status to 'used'
-  const { data: updatedOrder, error: updateError } = await supabase
-    .from('orders')
-    .update({ status: 'used', updated_at: new Date().toISOString() })
-    .eq('id', orderId)
-    .select()
-    .single();
-  
-  if (updateError) {
-    return { data: null, error: updateError };
-  }
-  
-  // Get buyer profile
-  const { getProfile } = await import('../supabase/auth.js');
-  const { data: profile } = await getProfile(order.buyer_id);
-  
-  return {
-    data: {
-      success: true,
-      order: {
-        id: order.id,
-        status: 'used',
-        total_usd: order.total_usd
-      },
-      buyer: {
-        full_name: profile?.full_name || '—',
-        email: profile?.email || '—'
-      }
-    },
-    error: null
-  };
+
+  // Otherwise assume it's a token string
+  if (!token) token = scannedText;
+
+  const { data, error } = await redeemQRToken(token, scannerId, deviceId);
+  if (error) return { data: null, error };
+  return { data, error: null };
 }
 
 /**

@@ -12,10 +12,11 @@ import { bindNavActive, requireAdminSession, toast } from '../shared/ui.js';
 import { getAuthUser, getProfile, getSession, signInWithPassword, signOut } from '../supabase/auth.js';
 import { createProduct, deleteProduct, deriveSkuAndSlugFromName, getProductImagePublicUrl, listProductsAdmin, updateProduct, uploadProductImage } from '../supabase/products.js';
 import { getCurrentExchangeRate, updateExchangeRate } from '../supabase/settings.js';
-import { listAllOrders, updateOrderStatus, getOrderWithDetails } from '../supabase/orders.js';
+import { listAllOrders, updateOrderStatus, getOrderWithDetails, getOrderForScanner } from '../supabase/orders.js';
 import { listPendingPayments, updatePaymentStatus, getProofPublicUrl } from '../supabase/payments.js';
 import { getActiveMesasMap, publishMesasMap, getMesasHistory, getMesasImagePublicUrl } from '../supabase/mesas.js';
 import { redeemQR } from '../use-cases/qr.js';
+import { getQRTokenByToken, redeemQRToken } from '../supabase/qr.js';
 
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -33,6 +34,76 @@ function initGuards() {
       await requireAdminSession(hasAdminSession);
     })();
   });
+}
+
+async function initVerify() {
+  const statusEl = qs('[data-verify-status]');
+  const detailsEl = qs('[data-verify-details]');
+  const redeemBtn = qs('[data-verify-redeem]');
+  if (!statusEl || !detailsEl || !redeemBtn) return;
+  if (!(await requireAdminSession(hasAdminSession))) return;
+  redeemBtn.disabled = true;
+  const token = new URLSearchParams(window.location.search).get('token');
+  if (!token) {
+    statusEl.textContent = 'Falta el parámetro token.';
+    return;
+  }
+  statusEl.textContent = 'Cargando…';
+  const { data: qrCode } = await getQRTokenByToken(token);
+  if (!qrCode) {
+    statusEl.textContent = 'QR inválido o no encontrado.';
+    return;
+  }
+  const { data: order } = await getOrderForScanner(qrCode.order_id);
+  if (!order) {
+    statusEl.textContent = 'Orden no encontrada para este QR.';
+    return;
+  }
+  detailsEl.textContent = `Orden ${order.id?.slice(0, 8)}… · Estado: ${order.status}`;
+
+  const setStatus = (kind, msg) => {
+    statusEl.style.color = kind === 'success' ? '#11bb75' : kind === 'warning' ? '#ff9800' : '#f44336';
+    statusEl.textContent = msg;
+  };
+
+  if (order.status === 'approved') {
+    setStatus('success', 'Aprobado: listo para canjear.');
+    redeemBtn.disabled = false;
+  } else if (order.status === 'used') {
+    setStatus('warning', 'Este QR ya fue usado.');
+  } else if (order.status === 'rejected') {
+    setStatus('error', 'Orden rechazada.');
+  } else {
+    setStatus('warning', 'Orden pendiente / no aprobada.');
+  }
+
+  redeemBtn.addEventListener('click', async () => {
+    redeemBtn.disabled = true;
+    setStatus('warning', 'Canjeando…');
+
+    const authUser = await getAuthUser();
+    if (!authUser?.id) {
+      setStatus('error', 'Sesión inválida.');
+      return;
+    }
+
+    const { data, error } = await redeemQRToken(token, authUser.id, navigator.userAgent);
+    if (error) {
+      setStatus('error', error.message || 'No se pudo canjear.');
+      toast(error.message || 'No se pudo canjear', 'warning');
+      return;
+    }
+
+    if (data?.success) {
+      setStatus('success', 'Canjeado exitosamente.');
+      detailsEl.textContent = `Orden ${order.id?.slice(0, 8)}… · Estado: used`;
+      toast('QR canjeado', 'success');
+      return;
+    }
+
+    setStatus('warning', data?.error || 'No se pudo canjear.');
+    toast(data?.error || 'No se pudo canjear', 'warning');
+  }, { once: true });
 }
 
 async function initHeader() {
@@ -683,6 +754,10 @@ async function initScanner() {
   const debugConsole = document.getElementById('debug-console');
   const clearDebugBtn = document.getElementById('clear-debug');
   
+  function debug(message) {
+    if (debugConsole) debugConsole.textContent += String(message) + '\n';
+  }
+  
   if (!readerEl) {
     console.error('qr-reader element not found');
     debug('ERROR: qr-reader element not found');
@@ -1076,6 +1151,7 @@ initLicores();
 initMesasUpload();
 initVerificaciones();
 initCompradores();
+initVerify();
 try {
   initScanner();
   console.log('initScanner called at end of file');
