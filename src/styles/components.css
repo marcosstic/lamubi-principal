@@ -78,3 +78,5 @@
 .mubito-scene.scene--dance .mubito__glow{opacity:1}
 
 .mubito-scene.is-boosting .mubito{animation:mubitoDance 1.4s ease-in-out infinite, danceBoost 1.2s ease-in-out 1}
+
+.hidden-temp{display:none!important}
