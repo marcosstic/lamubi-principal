@@ -13,7 +13,7 @@ import { getAuthUser, getProfile, getSession, signInWithPassword, signOut } from
 import { createProduct, deleteProduct, deriveSkuAndSlugFromName, getProductImagePublicUrl, listProductsAdmin, updateProduct, uploadProductImage } from '../supabase/products.js';
 import { getCurrentExchangeRate, updateExchangeRate } from '../supabase/settings.js';
 import { listAllOrders, updateOrderStatus, getOrderWithDetails, getOrderForScanner } from '../supabase/orders.js';
-import { listPendingPayments, updatePaymentStatus, getProofPublicUrl } from '../supabase/payments.js';
+import { listPendingPayments, updatePaymentStatus, createProofSignedUrl } from '../supabase/payments.js';
 import { getActiveMesasMap, publishMesasMap, getMesasHistory, getMesasImagePublicUrl } from '../supabase/mesas.js';
 import { redeemQR } from '../use-cases/qr.js';
 import { getQRTokenByToken, redeemQRToken } from '../supabase/qr.js';
@@ -671,7 +671,16 @@ async function initVerificaciones() {
     const p = (payments || []).find((x) => x.id === paymentId);
     if (!p) return;
 
-    const proofUrl = p.proofs?.[0]?.storage_path ? getProofPublicUrl(p.proofs[0].storage_path) : null;
+    let proofUrl = null;
+    const proofPath = p.proofs?.[0]?.storage_path || null;
+    if (proofPath) {
+      const { data: signed, error: signedErr } = await createProofSignedUrl(proofPath, 300);
+      if (signedErr) {
+        console.error('Error creando signed url comprobante:', signedErr);
+      } else {
+        proofUrl = signed?.signedUrl || null;
+      }
+    }
     const methodLabel = p.method === 'zelle' ? 'Zelle' : 'Pago Móvil';
 
     detail.innerHTML = `

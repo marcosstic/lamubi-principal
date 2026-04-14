@@ -118,3 +118,16 @@ export function getProofPublicUrl(storagePath) {
   const { data } = supabase.storage.from(PROOFS_BUCKET).getPublicUrl(storagePath);
   return data?.publicUrl || null;
 }
+
+export async function createProofSignedUrl(storagePath, expiresInSeconds = 300) {
+  if (!storagePath) return { data: null, error: { message: 'storagePath requerido' } };
+  const expiresIn = Number(expiresInSeconds);
+  const safeExpiresIn = Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : 300;
+
+  const { data, error } = await supabase.storage
+    .from(PROOFS_BUCKET)
+    .createSignedUrl(storagePath, safeExpiresIn);
+
+  if (error) return { data: null, error };
+  return { data: { signedUrl: data?.signedUrl || null }, error: null };
+}
