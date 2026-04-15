@@ -716,21 +716,46 @@ async function initVerificaciones() {
     if (!unique.length) return new Map();
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, full_name, phone, email')
+      .select('id, full_name, phone')
       .in('id', unique);
     if (profilesError) {
       console.error('Error cargando profiles:', profilesError);
       return new Map();
     }
+    // Obtener emails via RPC para mantener 3FN
+    const emailMap = new Map();
+    for (const userId of unique) {
+      const { data: email, error: emailError } = await supabase.rpc('get_user_email', { user_id: userId });
+      if (!emailError && email) {
+        emailMap.set(userId, email);
+      }
+    }
+    // Crear map de profiles existentes
+    const existingProfilesMap = new Map();
+    (profiles || []).forEach((p) => {
+      existingProfilesMap.set(p.id, p);
+    });
+    // Para usuarios sin profile, crear uno básico con el email
     const map = new Map();
-    (profiles || []).forEach((p) => map.set(p.id, p));
+    for (const userId of unique) {
+      const existingProfile = existingProfilesMap.get(userId);
+      if (existingProfile) {
+        map.set(userId, { ...existingProfile, email: emailMap.get(userId) || null });
+      } else {
+        // Crear profile básico para usuarios que no tienen registro en profiles
+        map.set(userId, { 
+          id: userId, 
+          full_name: emailMap.get(userId)?.split('@')[0] || 'Usuario', 
+          phone: null, 
+          email: emailMap.get(userId) || null 
+        });
+      }
+    }
     return map;
   }
 
   async function render() {
-    console.log('[render] Iniciando carga de pagos pendientes...');
     const { data: payments, error } = await listPendingPayments();
-    console.log('[render] payments:', payments, 'error:', error);
     if (error) {
       console.error('Error cargando pagos pendientes:', error);
       list.innerHTML = `<div class="card card--soft"><h3 class="card__title">Error</h3><p class="card__text">No se pudieron cargar los pagos pendientes.</p></div>`;
@@ -739,10 +764,7 @@ async function initVerificaciones() {
     }
 
     const pending = payments || [];
-    console.log('[render] pending:', pending);
-
     const filtered = _currentFilter === 'all' ? pending : pending.filter(p => p.status === _currentFilter);
-    console.log('[render] filtered:', filtered);
 
     const buyerIds = pending.map((p) => p?.order?.buyer_id).filter(Boolean);
     const profilesMap = await loadProfilesByIds(buyerIds);
