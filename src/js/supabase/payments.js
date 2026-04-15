@@ -54,10 +54,10 @@ export async function listPendingPayments() {
     .from(PAYMENTS_TABLE)
     .select(`
       *,
-      order:orders(id, buyer_id, total_usd, created_at),
+      order:orders(id, buyer_id, total_usd, created_at, order_items:order_items(id, qty, unit_price_usd, product:products(id, sku, name))),
       proofs:payment_proofs(id, storage_path, created_at)
     `)
-    .eq('status', 'submitted')
+    .in('status', ['submitted', 'approved', 'rejected'])
     .order('submitted_at', { ascending: false });
 }
 

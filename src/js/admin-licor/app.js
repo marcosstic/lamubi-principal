@@ -10,6 +10,8 @@ window.addEventListener('error', (e) => {
 
 import { bindNavActive, requireAdminSession, toast } from '../shared/ui.js';
 import { getAuthUser, getProfile, getSession, signInWithPassword, signOut } from '../supabase/auth.js';
+import { supabase } from '../supabase/client.js';
+window.supabase = supabase;
 import { createProduct, deleteProduct, deriveSkuAndSlugFromName, getProductImagePublicUrl, listProductsAdmin, updateProduct, uploadProductImage } from '../supabase/products.js';
 import { getCurrentExchangeRate, updateExchangeRate } from '../supabase/settings.js';
 import { listAllOrders, updateOrderStatus, getOrderWithDetails, getOrderForScanner } from '../supabase/orders.js';
@@ -82,6 +84,28 @@ async function initVerify() {
     setStatus('warning', 'Canjeando…');
 
     const authUser = await getAuthUser();
+
+  const TZ_VE = 'America/Caracas';
+  const fmtVe = (iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('es-VE', { timeZone: TZ_VE, dateStyle: 'short', timeStyle: 'short' }).format(d);
+  };
+
+  const timeAgo = (iso) => {
+    const d = new Date(iso);
+    const ms = d.getTime();
+    if (Number.isNaN(ms)) return '';
+    const diff = Date.now() - ms;
+    const sec = Math.floor(diff / 1000);
+    if (sec < 60) return `hace ${sec}s`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `hace ${min}m`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `hace ${h}h`;
+    const days = Math.floor(h / 24);
+    return `hace ${days}d`;
+  };
     if (!authUser?.id) {
       setStatus('error', 'Sesión inválida.');
       return;
@@ -625,35 +649,139 @@ async function initCompradores() {
 }
 
 async function initVerificaciones() {
+  console.log('[initVerificaciones] Iniciando...');
   const root = qs('[data-admin-verificaciones]');
-  if (!root) return;
-  if (!(await requireAdminSession(hasAdminSession))) return;
+  console.log('[initVerificaciones] root:', root);
+  if (!root) {
+    console.error('[initVerificaciones] No se encontró [data-admin-verificaciones]');
+    return;
+  }
+  if (!(await requireAdminSession(hasAdminSession))) {
+    console.error('[initVerificaciones] Sesión de admin no válida');
+    return;
+  }
 
   const list = qs('[data-verif-list]', root);
   const detail = qs('[data-verif-detail]', root);
+  console.log('[initVerificaciones] list:', list, 'detail:', detail);
   const authUser = await getAuthUser();
+  console.log('[initVerificaciones] authUser:', authUser);
+
+  const TZ_VE = 'America/Caracas';
+  const fmtVe = (iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('es-VE', { timeZone: TZ_VE, dateStyle: 'short', timeStyle: 'short' }).format(d);
+  };
+
+  const timeAgo = (iso) => {
+    const d = new Date(iso);
+    const ms = d.getTime();
+    if (Number.isNaN(ms)) return '';
+    const diff = Date.now() - ms;
+    const sec = Math.floor(diff / 1000);
+    if (sec < 60) return `hace ${sec}s`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `hace ${min}m`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `hace ${h}h`;
+    const days = Math.floor(h / 24);
+    return `hace ${days}d`;
+  };
+
+  let _verifPaymentsCache = [];
+  let _currentFilter = 'all';
+
+  // Helper para badge color según estado
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case 'submitted': return 'badge--pending';
+      case 'approved': return 'badge--success';
+      case 'rejected': return 'badge--danger';
+      default: return 'badge--neutral';
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'submitted': return 'Pendiente';
+      case 'approved': return 'Aprobado';
+      case 'rejected': return 'Rechazado';
+      default: return status;
+    }
+  };
+
+  async function loadProfilesByIds(ids) {
+    const unique = Array.from(new Set((ids || []).filter(Boolean)));
+    if (!unique.length) return new Map();
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone, email')
+      .in('id', unique);
+    if (profilesError) {
+      console.error('Error cargando profiles:', profilesError);
+      return new Map();
+    }
+    const map = new Map();
+    (profiles || []).forEach((p) => map.set(p.id, p));
+    return map;
+  }
 
   async function render() {
+    console.log('[render] Iniciando carga de pagos pendientes...');
     const { data: payments, error } = await listPendingPayments();
-    const pending = (payments || []).filter((p) => p.status === 'submitted');
+    console.log('[render] payments:', payments, 'error:', error);
+    if (error) {
+      console.error('Error cargando pagos pendientes:', error);
+      list.innerHTML = `<div class="card card--soft"><h3 class="card__title">Error</h3><p class="card__text">No se pudieron cargar los pagos pendientes.</p></div>`;
+      detail.innerHTML = `<div class="card card--soft"><p class="card__text">Intenta recargar la página.</p></div>`;
+      return;
+    }
 
-    if (!pending.length) {
+    const pending = payments || [];
+    console.log('[render] pending:', pending);
+
+    const filtered = _currentFilter === 'all' ? pending : pending.filter(p => p.status === _currentFilter);
+    console.log('[render] filtered:', filtered);
+
+    const buyerIds = pending.map((p) => p?.order?.buyer_id).filter(Boolean);
+    const profilesMap = await loadProfilesByIds(buyerIds);
+    pending.forEach((p) => {
+      const buyerId = p?.order?.buyer_id;
+      if (!buyerId) return;
+      const prof = profilesMap.get(buyerId) || null;
+      if (!p.order) p.order = {};
+      p.order.buyer = prof;
+    });
+
+    _verifPaymentsCache = pending;
+
+    if (!filtered.length) {
       list.innerHTML = `<div class="card card--soft"><h3 class="card__title">Sin pendientes</h3><p class="card__text">No hay pagos por verificar.</p></div>`;
       detail.innerHTML = `<div class="card card--soft"><p class="card__text">Selecciona un pago para ver detalles.</p></div>`;
       return;
     }
 
-    list.innerHTML = pending.map((p) => {
+    list.innerHTML = filtered.map((p) => {
       const methodLabel = p.method === 'zelle' ? 'Zelle' : 'Pago Móvil';
       const amountLabel = p.amount_usd ? `$${Number(p.amount_usd).toFixed(2)}` : '';
+      const buyerName = p.order?.buyer?.full_name || '';
+      const buyerPhone = p.order?.buyer?.phone || '';
+      const buyerEmail = p.order?.buyer?.email || '';
+      const who = (buyerName || buyerPhone || buyerEmail)
+        ? `${buyerName || '—'}${buyerPhone ? ` · ${buyerPhone}` : ''}${buyerEmail ? ` · ${buyerEmail}` : ''}`
+        : `Comprador: ${String(p.order?.buyer_id || '').slice(0, 8)}...`;
+      const submittedLabel = p.submitted_at ? `${timeAgo(p.submitted_at)} · ${fmtVe(p.submitted_at)}` : '';
+      const hasProof = Boolean(p.proofs?.[0]?.storage_path);
       return `
         <button type="button" class="card card--soft" data-open="${p.id}" style="text-align:left;cursor:pointer;width:100%">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
-            <div>
-              <div style="font-weight:900">${p.id.slice(0, 8)}...</div>
-              <div class="help">${methodLabel} · ${amountLabel}</div>
+            <div style="display:grid;gap:.2rem">
+              <div style="font-weight:900">${who}</div>
+              <div class="help">${methodLabel} · ${amountLabel}${submittedLabel ? ` · ${submittedLabel}` : ''}</div>
+              <div class="help">Orden ${String(p.order_id || '').slice(0, 8)}...${hasProof ? ' · Con comprobante' : ''}</div>
             </div>
-            <span class="badge badge--pending">Pendiente</span>
+            <span class="badge ${getStatusBadgeClass(p.status)}">${getStatusLabel(p.status)}</span>
           </div>
         </button>
       `;
@@ -663,12 +791,29 @@ async function initVerificaciones() {
       b.addEventListener('click', () => openDetail(b.getAttribute('data-open')));
     });
 
-    openDetail(pending[0].id);
+    openDetail(filtered[0]?.id);
+  }
+
+  // Event listeners para tabs de filtro
+  const tabsContainer = qs('[data-verif-tabs]', root);
+  if (tabsContainer) {
+    qsa('[data-filter]', tabsContainer).forEach((btn) => {
+      btn.addEventListener('click', () => {
+        _currentFilter = btn.getAttribute('data-filter');
+        // Actualizar estilos de botones
+        qsa('[data-filter]', tabsContainer).forEach((b) => {
+          b.classList.remove('btn--primary');
+          b.classList.add('btn--secondary');
+        });
+        btn.classList.remove('btn--secondary');
+        btn.classList.add('btn--primary');
+        render();
+      });
+    });
   }
 
   async function openDetail(paymentId) {
-    const { data: payments } = await listPendingPayments();
-    const p = (payments || []).find((x) => x.id === paymentId);
+    const p = (_verifPaymentsCache || []).find((x) => x.id === paymentId);
     if (!p) return;
 
     let proofUrl = null;
@@ -681,7 +826,16 @@ async function initVerificaciones() {
         proofUrl = signed?.signedUrl || null;
       }
     }
+
     const methodLabel = p.method === 'zelle' ? 'Zelle' : 'Pago Móvil';
+    const buyerName = p.order?.buyer?.full_name || '—';
+    const buyerPhone = p.order?.buyer?.phone || '—';
+    const buyerEmail = p.order?.buyer?.email || '—';
+    const items = (p.order?.order_items || []).map((it) => {
+      const qty = Number(it?.qty || 0);
+      const name = it?.product?.name || it?.product?.sku || '—';
+      return `${qty}x ${name}`;
+    });
 
     detail.innerHTML = `
       <div class="card card--soft" style="display:grid;gap:1rem">
@@ -689,13 +843,21 @@ async function initVerificaciones() {
           <div>
             <h3 class="card__title" style="margin:0">Pago ${p.id.slice(0, 8)}...</h3>
             <p class="help" style="margin:.25rem 0 0">Orden: ${p.order_id?.slice(0, 8) || '—'}...</p>
+            ${p.submitted_at ? `<p class="help" style="margin:.25rem 0 0">Enviado: ${timeAgo(p.submitted_at)} · ${fmtVe(p.submitted_at)}</p>` : ''}
           </div>
-          <span class="badge badge--pending">Pendiente</span>
+          <span class="badge ${getStatusBadgeClass(p.status)}">${getStatusLabel(p.status)}</span>
         </div>
+
         <div class="grid grid--2">
+          <div class="card card--soft"><div class="label">Comprador</div><div style="font-weight:600">${buyerName}</div><div class="help">${buyerPhone}</div><div class="help">${buyerEmail}</div></div>
           <div class="card card--soft"><div class="label">Método</div><div style="font-weight:600">${methodLabel}</div></div>
-          <div class="card card--soft"><div class="label">Monto USD</div><div style="font-weight:900;font-size:1.2rem">$${Number(p.amount_usd || 0).toFixed(2)}</div></div>
         </div>
+
+        <div class="grid grid--2">
+          <div class="card card--soft"><div class="label">Monto USD</div><div style="font-weight:900;font-size:1.2rem">$${Number(p.amount_usd || 0).toFixed(2)}</div></div>
+          <div class="card card--soft"><div class="label">Orden</div><div style="font-weight:600">$${Number(p.order?.total_usd || 0).toFixed(2)}</div><div class="help">${p.order?.created_at ? fmtVe(p.order.created_at) : ''}</div></div>
+        </div>
+
         ${proofUrl ? `
           <div>
             <div class="label" style="margin-bottom:.5rem">Comprobante</div>
@@ -704,6 +866,12 @@ async function initVerificaciones() {
             </div>
           </div>
         ` : '<div class="help">Sin comprobante adjunto</div>'}
+
+        <div>
+          <div class="label" style="margin-bottom:.5rem">Productos</div>
+          ${items.length ? `<div class="help" style="display:grid;gap:.25rem">${items.map((x) => `<div>${x}</div>`).join('')}</div>` : '<div class="help">—</div>'}
+        </div>
+
         <div class="field">
           <div class="label">Motivo de rechazo (si aplica)</div>
           <input class="input" type="text" name="reason" placeholder="Ej: comprobante ilegible" />
@@ -716,13 +884,11 @@ async function initVerificaciones() {
     `;
 
     qs('[data-approve]', detail)?.addEventListener('click', async () => {
-      // Update payment status
       const res = await updatePaymentStatus(paymentId, 'approved', authUser?.id);
       if (res.error) {
         toast(res.error.message || 'No se pudo aprobar el pago', 'warning');
         return;
       }
-      // Update order status
       await updateOrderStatus(p.order_id, 'approved');
       toast('Pago aprobado', 'success');
       await render();
@@ -734,13 +900,11 @@ async function initVerificaciones() {
         toast('Ingresa un motivo de rechazo', 'warning');
         return;
       }
-      // Update payment status
       const res = await updatePaymentStatus(paymentId, 'rejected', authUser?.id);
       if (res.error) {
         toast(res.error.message || 'No se pudo rechazar el pago', 'warning');
         return;
       }
-      // Update order status
       const orderRes = await updateOrderStatus(p.order_id, 'rejected');
       if (orderRes.error) {
         toast(orderRes.error.message || 'No se pudo actualizar la orden', 'warning');
