@@ -33,11 +33,11 @@
 .mubito__glow{position:absolute;inset:-20px;background:radial-gradient(circle, rgba(244,60,184,.35), transparent 60%);filter:blur(10px);z-index:-1;animation:pulseGlow 2.2s ease-in-out infinite alternate}
 .mubito-caption{text-align:center;margin-top:1.5rem;font-size:clamp(0.9rem, 1.5vw, 1.1rem);font-weight:600;letter-spacing:0.02em;color:var(--white);opacity:0.85;text-shadow:0 0 10px rgba(244, 60, 184, 0.3);animation:fadeIn 1s ease-out 0.5s both;}
 
-.card{position:relative;background:rgba(255,255,255,.05);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-lg);padding:1.5rem;box-shadow:var(--shadow-lamubi);transition:var(--t)}
+.card{position:relative;background:rgba(255,255,255,.12);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-lg);padding:1.5rem;box-shadow:var(--shadow-lamubi);transition:var(--t);color:var(--white)}
 .card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--secondary))}
 .card:hover{transform:translateY(-6px)}
-.card__title{margin:0 0 .6rem;font-weight:900;color:var(--primary)}
-.card__text{margin:0;opacity:.9;line-height:1.6}
+.card__title{margin:0 0 .6rem;font-weight:900;color:var(--white)}
+.card__text{margin:0;color:var(--white);font-weight:600;line-height:1.6}
 
 .portfolio{display:grid;gap:1.5rem}
 .portfolio__featured{display:grid;justify-items:center}
