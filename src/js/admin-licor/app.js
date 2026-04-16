@@ -722,12 +722,17 @@ async function initVerificaciones() {
       console.error('Error cargando profiles:', profilesError);
       return new Map();
     }
-    // Obtener emails via RPC para mantener 3FN
+    // Obtener emails y teléfonos via RPC para mantener 3FN
     const emailMap = new Map();
+    const phoneMap = new Map();
     for (const userId of unique) {
       const { data: email, error: emailError } = await supabase.rpc('get_user_email', { user_id: userId });
+      const { data: phone, error: phoneError } = await supabase.rpc('get_user_phone', { user_id: userId });
       if (!emailError && email) {
         emailMap.set(userId, email);
+      }
+      if (!phoneError && phone) {
+        phoneMap.set(userId, phone);
       }
     }
     // Crear map de profiles existentes
@@ -746,7 +751,7 @@ async function initVerificaciones() {
         map.set(userId, { 
           id: userId, 
           full_name: emailMap.get(userId)?.split('@')[0] || 'Usuario', 
-          phone: null, 
+          phone: phoneMap.get(userId) || null, 
           email: emailMap.get(userId) || null 
         });
       }
