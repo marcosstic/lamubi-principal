@@ -38,3 +38,59 @@
  .toast--warning{border-color:rgba(255,152,0,.55)}
  .toast--info{border-color:rgba(33,150,243,.55)}
  .toast--error{border-color:rgba(244,67,54,.55)}
+
+/* Confirmación Page - Responsive Layout */
+.confirmacion__wrap {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.confirmacion__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.confirmacion__card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 1.5rem;
+  border: 2px solid #bb1175;
+  overflow: hidden;
+}
+
+/* Mobile: Stack in single column */
+@media (max-width: 768px) {
+  .confirmacion__grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .confirmacion__card {
+    padding: 1.25rem;
+  }
+  
+  /* Increase QR size for better scanning on mobile */
+  #confirm-qr-code img {
+    width: 240px !important;
+    height: 240px !important;
+  }
+}
+
+/* Small mobile adjustments */
+@media (max-width: 480px) {
+  .confirmacion__wrap {
+    padding: 0 0.5rem;
+  }
+  
+  .confirmacion__card {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+  
+  /* Slightly smaller QR for very small screens */
+  #confirm-qr-code img {
+    width: 220px !important;
+    height: 220px !important;
+  }
+}

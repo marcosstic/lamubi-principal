@@ -519,11 +519,11 @@ async function initConfirmacion() {
   const statusLabel = order.status === 'awaiting_verification' ? 'pendiente' : order.status === 'approved' ? 'aprobada' : order.status === 'rejected' ? 'rechazada' : order.status === 'used' ? 'usada' : order.status;
 
   root.innerHTML = `
-    <div style="max-width:700px;margin:0 auto">
+    <div class="confirmacion__wrap">
       <!-- Two columns layout -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="confirmacion__grid">
         <!-- LEFT COLUMN: TICKET -->
-        <div id="ticket-download" style="background:#fff;border-radius:20px;padding:1.5rem;border:2px solid #bb1175;overflow:hidden">
+        <div id="ticket-download" class="confirmacion__card" style="background:#fff;border-radius:20px;padding:1.5rem;border:2px solid #bb1175;overflow:hidden">
           <!-- Logo centrado -->
           <div style="text-align:center;margin-bottom:1rem">
             <img src="/LaMubiMCBOLogo1.png" alt="LA MUBI" style="width:80px;height:auto;margin:0 auto;display:block" />
@@ -607,7 +607,7 @@ async function initConfirmacion() {
         </div>
 
         <!-- RIGHT COLUMN: PRODUCTS -->
-        <div style="background:#fff;border-radius:20px;padding:1.5rem;border:2px solid #bb1175;overflow:hidden">
+        <div class="confirmacion__card" style="background:#fff;border-radius:20px;padding:1.5rem;border:2px solid #bb1175;overflow:hidden">
           <h3 style="margin:0 0 1rem;font-size:1rem;font-weight:700;color:#bb1175;text-align:center">
             🛒 Productos Comprados
           </h3>
@@ -661,10 +661,14 @@ async function initConfirmacion() {
     tempDiv.style.left = '-9999px';
     document.body.appendChild(tempDiv);
     
+    // Detect mobile for larger QR size
+    const isMobile = window.innerWidth <= 768;
+    const qrSize = isMobile ? 240 : 200;
+    
     new window.QRCode(tempDiv, {
       text: qrText,
-      width: 200,
-      height: 200,
+      width: qrSize,
+      height: qrSize,
       colorDark: '#000000',
       colorLight: '#ffffff',
       correctLevel: window.QRCode.CorrectLevel.H
@@ -688,7 +692,7 @@ async function initConfirmacion() {
     
     // Insert QR as img in the ticket
     if (qrDataUrl) {
-      qrCodeEl.innerHTML = `<img id="qr-ticket-img" src="${qrDataUrl}" style="width:200px;height:200px;display:block" />`;
+      qrCodeEl.innerHTML = `<img id="qr-ticket-img" src="${qrDataUrl}" style="width:${qrSize}px;height:${qrSize}px;display:block" />`;
     } else {
       qrCodeEl.innerHTML = '<p style="color:red">Error al generar QR</p>';
     }
