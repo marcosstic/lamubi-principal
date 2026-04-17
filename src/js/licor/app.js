@@ -359,7 +359,7 @@ async function initCheckout() {
           <div>
             <div style="font-weight:900">PAGO MÓVIL</div>
             <div class="help">Transferencia directa desde tu teléfono móvil</div>
-            <div class="help" style="margin-top:.35rem">Teléfono: 04140659985<br/>Banco: Banesco<br/>Cédula: 23554868</div>
+            <div class="help" style="margin-top:.35rem">Teléfono: 04140659985<br/>Banco: Banco Nacional De Credito<br/>Cédula: 23554868</div>
           </div>
         </label>
         <label class="card card--soft" style="cursor:pointer;display:flex;gap:.75rem;align-items:flex-start">
