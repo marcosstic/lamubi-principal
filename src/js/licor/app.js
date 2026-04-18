@@ -220,44 +220,22 @@ async function renderCatalog() {
   const root = qs('[data-catalog]');
   if (!root) return;
 
-  const { data, error } = await listActiveProductsPublic();
-  if (error) {
-    toast(error.message || 'No se pudo cargar el catálogo', 'warning');
-    return;
-  }
-
-  const rate = await getRate();
-  const catalog = (data || []).filter((p) => p.product_type === 'liquor');
-  root.innerHTML = catalog.map((p) => {
-    const priceUsd = Number(p.price_usd || 0);
-    const ves = priceUsd * rate;
-    const imgUrl = getProductImagePublicUrl(p.image_path) || '/mubito.jpg';
-    return `
-      <article class="card card--tilt" style="display:grid;gap:.6rem">
-        <div style="border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.10)">
-          <img src="${imgUrl}" alt="${p.name}" style="width:100%;height:180px;object-fit:cover;display:block" />
-        </div>
-        <h3 class="card__title" style="margin:0">${p.name}</h3>
-        <p class="card__text" style="margin:0">${p.description || ''}</p>
-        <p class="help" style="margin:0">${fmtUsd(priceUsd)} · ${fmtVes(ves)}</p>
-        <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.4rem">
-          <button class="btn btn--primary" type="button" data-add-sku="${p.sku}">Agregar</button>
-        </div>
-      </article>
-    `;
-  }).join('');
-
-  qsa('[data-add-sku]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const sku = btn.getAttribute('data-add-sku');
-      const p = catalog.find((x) => x.sku === sku);
-      if (!p) return;
-      const cart = addToCart({ sku: p.sku, name: p.name, priceUsd: Number(p.price_usd || 0) });
-      setCartBadge(cartCount(cart));
-      toast('Agregado al carrito', 'success');
-      renderCart();
-    });
-  });
+  // Bloquear catálogo: mostrar mensaje informativo
+  root.innerHTML = `
+    <div class="card card--soft" style="grid-column: 1 / -1; text-align: center; max-width: 600px; margin: 0 auto;">
+      <h3 class="card__title">Catálogo temporalmente deshabilitado</h3>
+      <p class="card__text" style="margin: 1rem 0;">
+        El licor está disponible para compra <strong>presencial</strong> en la puerta del evento La MUBI 2000.
+      </p>
+      <p class="card__text" style="margin: 1rem 0;">
+        Puedes iniciar sesión para ver tus tickets y QR ya existentes.
+      </p>
+      <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; margin-top: 1.5rem;">
+        <a class="btn btn--primary" href="/licor/mi-cuenta.html">Ver mis tickets</a>
+        <a class="btn btn--secondary" href="/licor/login.html">Iniciar sesión</a>
+      </div>
+    </div>
+  `;
 }
 
 async function renderCart() {
