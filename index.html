@@ -76,7 +76,11 @@
           <div class="hero__content">
             <h1 class="hero__title">LA MUBI</h1>
             <p class="hero__subtitle">Experiencia DJ premium</p>
-            <p class="hero__copy">Activaciones para hoteles, piscinas y discotecas. Producción, música, DJ y energía en un solo concepto.</p>
+            <div class="hero__banner">
+              <span>Venta de entradas online disponible a partir del</span>
+              <strong>4 de mayo</strong>
+            </div>
+            <p class="hero__copy" style="margin-top:1.1rem;">Activaciones para hoteles, piscinas y discotecas. Producción, música, DJ y energía en un solo concepto.</p>
             <div class="hero__ctas">
               <a class="btn btn--primary btn--lg" href="https://ticket.lamubimcbo.com/" target="_blank" rel="noopener noreferrer">Tickets</a>
               <a class="btn btn--secondary btn--lg" href="https://registro.lamubimcbo.com/" target="_blank" rel="noopener noreferrer">Registro</a>
@@ -210,7 +214,45 @@
     </div>
   </footer>
 
+  <div class="popup-overlay" id="ticket-popup" hidden aria-modal="true" role="dialog" aria-labelledby="ticket-popup-title">
+    <div class="popup-card">
+      <button class="popup-close" type="button" aria-label="Cerrar aviso">×</button>
+      <h2 id="ticket-popup-title">Venta de entradas online</h2>
+      <p>Disponible a partir del 4 de mayo.</p>
+      <p>Prepárate para comprar tus tickets desde nuestro sitio a partir de esa fecha.</p>
+      <div class="popup-actions">
+        <a class="btn btn--primary btn--lg" href="/" target="_blank" rel="noopener noreferrer">Visitar la web principal</a>
+      </div>
+    </div>
+  </div>
+
   <script src="/src/js/main.js" type="module"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const popup = document.getElementById('ticket-popup');
+      const closeButton = popup?.querySelector('.popup-close');
+      if (!popup || !closeButton) return;
+
+      const hasShown = sessionStorage.getItem('lamubi_ticket_popup_shown');
+      if (hasShown === '1') return;
+
+      popup.hidden = false;
+
+      const closePopup = () => {
+        popup.hidden = true;
+        try { sessionStorage.setItem('lamubi_ticket_popup_shown', '1'); } catch (_) {}
+      };
+
+      closeButton.addEventListener('click', closePopup);
+      popup.addEventListener('click', (event) => {
+        if (event.target === popup) closePopup();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !popup.hidden) closePopup();
+      });
+    });
+  </script>
   <script async src="https://www.instagram.com/embed.js"></script>
   <script async src="https://www.tiktok.com/embed.js"></script>
 </body>

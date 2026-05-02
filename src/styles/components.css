@@ -28,7 +28,32 @@
 .hero__subtitle{margin:.4rem 0 1rem;font-size:clamp(1.1rem,2.4vw,1.7rem);color:var(--secondary);font-weight:800}
 .hero__copy{opacity:.85;max-width:60ch}
 .hero__ctas{display:flex;gap:1rem;margin-top:1.6rem;flex-wrap:wrap}
+.hero__banner{display:inline-flex;align-items:center;justify-content:center;gap:.75rem;width:100%;padding:1.15rem 1.5rem;margin-top:1rem;border-radius:2rem;background:linear-gradient(135deg,var(--primary),var(--secondary));color:var(--white);font-weight:800;font-size:clamp(1rem,1.5vw,1.4rem);text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.18)}
+.hero__banner strong{font-size:1.1em}
+.popup-overlay{position:fixed;inset:0;display:grid;place-items:center;padding:1.5rem;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);z-index:300;transition:opacity .3s ease}
+.popup-overlay[hidden]{display:none}
+.popup-card{position:relative;max-width:min(720px,95vw);width:100%;padding:2rem 2.25rem;border-radius:2rem;background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.08));border:1px solid rgba(255,255,255,.18);box-shadow:0 40px 120px rgba(0,0,0,.35);color:var(--white);text-align:center}
+.popup-card h2{margin:0 0 1rem;font-size:clamp(2rem,3.5vw,2.8rem);font-weight:900;letter-spacing:.02em}
+.popup-card p{margin:0.85rem 0;font-size:1.05rem;line-height:1.6;opacity:.95}
+.popup-close{position:absolute;top:1rem;right:1rem;border:none;background:rgba(0,0,0,.75);color:var(--white);width:44px;height:44px;border-radius:50%;font-size:1.4rem;cursor:pointer;box-shadow:0 0 24px rgba(0,0,0,.35);transition:transform .2s ease, background .2s ease}
+.popup-close:hover{background:rgba(0,0,0,.9);transform:scale(1.05)}
+.popup-actions{margin-top:1.8rem;display:flex;justify-content:center}
 .hero__mubito{position:relative;max-width:420px;margin-left:auto;display:flex;flex-direction:column;align-items:center}
+@media (max-width:768px){
+  .hero__banner{padding:1rem 1.25rem;font-size:clamp(0.95rem,2vw,1.15rem)}
+  .popup-card{padding:1.5rem 1.25rem;border-radius:1.5rem}
+  .popup-card h2{font-size:clamp(1.8rem,4vw,2.4rem)}
+  .popup-actions{margin-top:1.4rem}
+  .popup-close{width:42px;height:42px;top:0.85rem;right:0.85rem;font-size:1.3rem}
+}
+@media (max-width:480px){
+  .hero__banner{flex-direction:column;gap:0.5rem;padding:0.95rem 1rem;font-size:1rem}
+  .hero__banner strong{display:block}
+  .popup-card{padding:1.25rem 1rem;border-radius:1.25rem}
+  .popup-card p{font-size:1rem}
+  .popup-actions{margin-top:1.25rem}
+  .popup-close{width:40px;height:40px;top:0.75rem;right:0.75rem;font-size:1.2rem}
+}
 .mubito{border-radius:var(--radius-lg);box-shadow:0 0 40px rgba(244,60,184,.18)}
 .mubito__glow{position:absolute;inset:-20px;background:radial-gradient(circle, rgba(244,60,184,.35), transparent 60%);filter:blur(10px);z-index:-1;animation:pulseGlow 2.2s ease-in-out infinite alternate}
 .mubito-caption{text-align:center;margin-top:1.5rem;font-size:clamp(0.9rem, 1.5vw, 1.1rem);font-weight:600;letter-spacing:0.02em;color:var(--white);opacity:0.85;text-shadow:0 0 10px rgba(244, 60, 184, 0.3);animation:fadeIn 1s ease-out 0.5s both;}
