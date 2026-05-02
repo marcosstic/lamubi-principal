@@ -340,12 +340,10 @@ async function initCheckout() {
             <div class="help" style="margin-top:.35rem">Teléfono: 04140659985<br/>Banco: Banco Nacional De Credito<br/>Cédula: 23554868</div>
           </div>
         </label>
-        <label class="card card--soft" style="cursor:pointer;display:flex;gap:.75rem;align-items:flex-start">
-          <input type="radio" name="pay" value="zelle" />
+        <label class="card card--soft" style="cursor:default;display:flex;gap:.75rem;align-items:flex-start;opacity:.8">
+          <input type="radio" name="pay" value="zelle" disabled />
           <div>
-            <div style="font-weight:900">ZELLE</div>
-            <div class="help">Transferencia instantánea desde EE.UU.</div>
-            <div class="help" style="margin-top:.35rem">Email: troconizjessica@gmail.com<br/>Nombre: Jessica Troconiz</div>
+            <div style="font-weight:900">zelle no disponible temporalmente.</div>
           </div>
         </label>
       </div>
