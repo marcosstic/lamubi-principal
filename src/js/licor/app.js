@@ -8,6 +8,14 @@ import { createPayment, uploadPaymentProof } from '../supabase/payments.js';
 import { getActiveMesasMap, getMesasImagePublicUrl } from '../supabase/mesas.js';
 import { generateQRForOrder } from '../use-cases/qr.js';
 
+// ============================================================
+// CONFIGURATION FLAGS
+// ============================================================
+// Flag para activar/desactivar el catálogo de licores
+// Cambiar a true para reactivar el catálogo en el frontend
+const CATALOG_ENABLED = false;
+// ============================================================
+
 function qs(sel, root = document) { return root.querySelector(sel); }
 function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
 
@@ -219,6 +227,26 @@ async function renderOrders() {
 async function renderCatalog() {
   const root = qs('[data-catalog]');
   if (!root) return;
+
+  // Check de flag de configuración para desactivar catálogo
+  if (!CATALOG_ENABLED) {
+    root.innerHTML = `
+      <div class="card card--soft" style="grid-column: 1 / -1; text-align: center; max-width: 600px; margin: 0 auto;">
+        <h3 class="card__title">Catálogo temporalmente deshabilitado</h3>
+        <p class="card__text" style="margin: 1rem 0;">
+          La venta de licores está disponible <strong>presencial</strong> en la puerta del evento.
+        </p>
+        <p class="card__text" style="margin: 1rem 0;">
+          Puedes ver tus tickets y QR ya existentes iniciando sesión.
+        </p>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; margin-top: 1.5rem;">
+          <a class="btn btn--primary" href="/licor/mi-cuenta.html">Ver mis tickets</a>
+          <a class="btn btn--secondary" href="/licor/login.html">Iniciar sesión</a>
+        </div>
+      </div>
+    `;
+    return;
+  }
 
   const { data, error } = await listActiveProductsPublic();
   if (error) {
